@@ -12,12 +12,13 @@ Implement a simple tile-based level rendering system using bevy_ecs_tilemap. Til
 - Camera should show the level clearly
 
 ## Acceptance Criteria
-- [ ] bevy_ecs_tilemap crate is added to Cargo.toml
-- [ ] Tilemap renders on screen with visible tiles
-- [ ] Level is defined as a 2D array in code
-- [ ] At least two tile types exist (empty/air and solid platform)
-- [ ] Tiles are 16x16 pixels each
-- [ ] Camera is positioned to view the tilemap
+- [x] bevy_ecs_tilemap crate is added to Cargo.toml
+- [x] Tilemap renders on screen with visible tiles
+- [x] Level is defined as a 2D array in code
+- [x] At least two tile types exist (empty/air and solid platform)
+- [x] Tiles are 16x16 pixels each
+- [x] Camera is positioned to view the tilemap
+- [x] Ground floor renders at bottom with platforms above
 
 ---
 
@@ -43,13 +44,14 @@ Use bevy_ecs_tilemap crate for efficient tile rendering. Create a simple prototy
 - Individual tile entities with positions
 
 ### Tasks
-- [ ] Add bevy_ecs_tilemap to Cargo.toml (check compatible version for Bevy 0.18)
-- [ ] Create placeholder tileset texture (2 tiles: empty=transparent, solid=colored)
-- [ ] Define level data as 2D constant array (e.g., 20x15 tiles)
-- [ ] Implement setup_tilemap system to spawn tiles from array
-- [ ] Configure camera position/scale to view level
-- [ ] Test: Run and verify tilemap renders correctly
-- [ ] Test: Verify different tile types are visually distinct
+- [x] Add bevy_ecs_tilemap to Cargo.toml (check compatible version for Bevy 0.18)
+- [x] Create placeholder tileset texture (2 tiles: empty=transparent, solid=colored)
+- [x] Define level data as 2D constant array (e.g., 20x15 tiles)
+- [x] Implement setup_tilemap system to spawn tiles from array
+- [x] Configure camera position/scale to view level
+- [x] Fix Y-axis inversion (array row 0 = top, tilemap Y=0 = bottom)
+- [x] Test: Run and verify tilemap renders correctly
+- [x] Test: Verify different tile types are visually distinct
 
 ### Notes
 - bevy_ecs_tilemap version must be compatible with Bevy 0.18 (likely v0.15.x)
@@ -58,3 +60,4 @@ Use bevy_ecs_tilemap crate for efficient tile rendering. Create a simple prototy
 - Level array format example: `[[0, 1, 1, 1, 0], [0, 0, 0, 0, 0]]` where 0=empty, 1=solid
 - Consider tile types: 0=Empty/Air, 1=Solid Platform
 - Camera may need adjustment: use orthographic projection for 2D
+- **Y-axis inversion fix**: Array row 0 represents the top of the level visually, but bevy_ecs_tilemap Y=0 is at the bottom. When reading from the array, use `LEVEL_DATA[(LEVEL_HEIGHT - 1 - y) as usize]` to flip the Y coordinate so ground tiles (last rows in array) render at the bottom of the screen.
