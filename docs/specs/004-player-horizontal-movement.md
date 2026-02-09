@@ -12,12 +12,12 @@ Implement basic horizontal player movement controlled by left and right cursor k
 - Player stays visible on screen at all times
 
 ## Acceptance Criteria
-- [ ] Pressing left arrow key moves player left
-- [ ] Pressing right arrow key moves player right
-- [ ] Player stops at left screen edge
-- [ ] Player stops at right screen edge
-- [ ] Movement is smooth and responsive
-- [ ] Player sprite remains fully visible (not clipped at edges)
+- [x] Pressing left arrow key moves player left
+- [x] Pressing right arrow key moves player right
+- [x] Player stops at left screen edge (removed - now camera follows)
+- [x] Player stops at right screen edge (removed - now camera follows)
+- [x] Movement is smooth and responsive
+- [x] Player sprite remains fully visible (not clipped at edges)
 
 ---
 
@@ -42,18 +42,18 @@ Create a movement system that reads keyboard input and directly modifies the pla
 - Screen bounds calculation based on window size and tilemap position
 
 ### Tasks
-- [ ] Define PLAYER_SPEED constant (e.g., 100.0)
-- [ ] Implement player_movement system
-- [ ] Read left/right arrow key input
-- [ ] Calculate new position: current + (direction * speed * delta_time)
-- [ ] Calculate screen boundaries (left edge, right edge)
-- [ ] Clamp player x position to boundaries
-- [ ] Apply clamped position to Transform
-- [ ] Add player_movement to Update schedule
-- [ ] Test: Run and verify left arrow moves player left
-- [ ] Test: Run and verify right arrow moves player right
-- [ ] Test: Verify player stops at screen edges
-- [ ] Test: Verify no jittery/stuttering movement
+- [x] Define PLAYER_SPEED constant (e.g., 100.0)
+- [x] Implement player_movement system
+- [x] Read left/right arrow key input
+- [x] Calculate new position: current + (direction * speed * delta_time)
+- [x] Calculate screen boundaries (left edge, right edge) - removed in spec 005
+- [x] Clamp player x position to boundaries - removed in spec 005
+- [x] Apply clamped position to Transform
+- [x] Add player_movement to Update schedule
+- [x] Test: Run and verify left arrow moves player left
+- [x] Test: Run and verify right arrow moves player right
+- [x] Test: Verify player stops at screen edges - removed in spec 005
+- [x] Test: Verify no jittery/stuttering movement
 
 ### Notes
 - Screen bounds calculation: Based on 800x600 window with centered tilemap

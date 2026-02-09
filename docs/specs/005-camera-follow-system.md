@@ -12,12 +12,12 @@ Implement smooth camera follow that tracks the player position. The camera smoot
 - Frame-rate independent camera movement
 
 ## Acceptance Criteria
-- [ ] Camera smoothly follows player horizontally
-- [ ] Camera smoothly follows player vertically  
-- [ ] Camera movement is smooth, not instant or jerky
-- [ ] Camera lag feels natural (not too slow, not too fast)
-- [ ] Player remains visible on screen during movement
-- [ ] Frame-rate independent camera updates
+- [x] Camera smoothly follows player horizontally
+- [x] Camera smoothly follows player vertically  
+- [x] Camera movement is smooth, not instant or jerky
+- [x] Camera lag feels natural (not too slow, not too fast)
+- [x] Player remains visible on screen during movement
+- [x] Frame-rate independent camera updates
 
 ---
 
@@ -45,18 +45,18 @@ Create a camera follow system that queries both camera and player transforms. Ca
 - Camera: `Query<&mut Transform, With<Camera2d>>`
 
 ### Tasks
-- [ ] Define CAMERA_LERP_SPEED constant (suggested: 5.0)
-- [ ] Implement camera_follow system
-- [ ] Query player transform
-- [ ] Query camera transform (mutable)
-- [ ] Calculate lerp factor: lerp_speed * delta_time
-- [ ] Lerp camera X toward player X
-- [ ] Lerp camera Y toward player Y
-- [ ] Keep camera Z unchanged (viewing plane)
-- [ ] Add camera_follow to Update schedule
-- [ ] Test: Run and verify camera follows player smoothly
-- [ ] Test: Verify camera catches up when player stops
-- [ ] Test: Tune lerp speed if needed (too fast/slow)
+- [x] Define CAMERA_LERP_SPEED constant (suggested: 5.0)
+- [x] Implement camera_follow system
+- [x] Query player transform
+- [x] Query camera transform (mutable)
+- [x] Calculate lerp factor: lerp_speed * delta_time
+- [x] Lerp camera X toward player X
+- [x] Lerp camera Y toward player Y
+- [x] Keep camera Z unchanged (viewing plane)
+- [x] Add camera_follow to Update schedule
+- [x] Test: Run and verify camera follows player smoothly
+- [x] Test: Verify camera catches up when player stops
+- [x] Test: Tune lerp speed if needed (too fast/slow)
 
 ### Notes
 - Lerp formula: `current + (target - current) * factor`
