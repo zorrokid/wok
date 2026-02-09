@@ -16,8 +16,6 @@ use crate::level::{LEVEL_HEIGHT, LEVEL_WIDTH};
 
 // Constants
 const PLAYER_SPEED: f32 = 100.0; // pixels per second
-const SCREEN_LEFT_BOUND: f32 = -152.0; // -160 (tilemap offset) + 8 (half player)
-const SCREEN_RIGHT_BOUND: f32 = 152.0; // 160 (tilemap offset) - 8 (half player)
 
 // Player marker component
 #[derive(Component)]
@@ -59,11 +57,5 @@ pub fn player_movement(
         // Calculate new position
         let movement = direction * PLAYER_SPEED * time.delta_secs();
         transform.translation.x += movement;
-
-        // Clamp to screen boundaries
-        transform.translation.x = transform
-            .translation
-            .x
-            .clamp(SCREEN_LEFT_BOUND, SCREEN_RIGHT_BOUND);
     }
 }

@@ -1,10 +1,14 @@
+mod camera;
 mod keyboard;
 mod level;
 mod player;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 
-use crate::{keyboard::exit_on_esc, level::setup_tilemap, player::{spawn_player, player_movement}};
+use crate::{
+    camera::camera_follow, keyboard::exit_on_esc, level::setup_tilemap,
+    player::{player_movement, spawn_player},
+};
 
 fn main() {
     App::new()
@@ -18,6 +22,6 @@ fn main() {
         }))
         .add_plugins(TilemapPlugin)
         .add_systems(Startup, (setup_tilemap, spawn_player))
-        .add_systems(Update, (player_movement, exit_on_esc))
+        .add_systems(Update, (player_movement, camera_follow, exit_on_esc))
         .run();
 }
