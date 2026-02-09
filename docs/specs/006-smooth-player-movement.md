@@ -12,12 +12,12 @@ Replace direct position-based player movement with smooth acceleration and decel
 - Frame-rate independent movement
 
 ## Acceptance Criteria
-- [ ] Player gradually speeds up when starting to move
-- [ ] Player gradually slows down when stopping
-- [ ] No instant speed changes (smooth transitions)
-- [ ] Movement feels natural and responsive
-- [ ] Left/right controls still work correctly
-- [ ] Movement is frame-rate independent
+- [x] Player gradually speeds up when starting to move
+- [x] Player gradually slows down when stopping
+- [x] No instant speed changes (smooth transitions)
+- [x] Movement feels natural and responsive
+- [x] Left/right controls still work correctly
+- [x] Movement is frame-rate independent
 
 ---
 
@@ -41,18 +41,18 @@ Add a Velocity component to the player to track current movement speed. Instead 
 - `PLAYER_MAX_SPEED` - Maximum horizontal movement speed (e.g., 100.0 pixels/sec)
 
 ### Tasks
-- [ ] Create Velocity component as Vec2 (x and y components)
-- [ ] Add Velocity component to player spawn (initialized to Vec2::ZERO)
-- [ ] Define movement constants (acceleration, deceleration, max speed)
-- [ ] Modify player_movement system to use velocity
-- [ ] Calculate target velocity.x based on input (0.0 or ±PLAYER_MAX_SPEED)
-- [ ] Apply acceleration toward target when moving
-- [ ] Apply deceleration toward zero when no input
-- [ ] Clamp velocity.x to max speed
-- [ ] Apply velocity.x to transform position (leave velocity.y unused for now)
-- [ ] Test: Run and verify smooth acceleration
-- [ ] Test: Run and verify smooth deceleration
-- [ ] Test: Tune acceleration/deceleration for feel
+- [x] Create Velocity component as Vec2 (x and y components)
+- [x] Add Velocity component to player spawn (initialized to Vec2::ZERO)
+- [x] Define movement constants (acceleration, deceleration, max speed)
+- [x] Modify player_movement system to use velocity
+- [x] Calculate target velocity.x based on input (0.0 or ±PLAYER_MAX_SPEED)
+- [x] Apply acceleration toward target when moving
+- [x] Apply deceleration toward zero when no input
+- [x] Clamp velocity.x to max speed
+- [x] Apply velocity.x to transform position (leave velocity.y unused for now)
+- [x] Test: Run and verify smooth acceleration
+- [x] Test: Run and verify smooth deceleration (fixed overshoot bug)
+- [x] Test: Tune acceleration/deceleration for feel
 
 ### Notes
 - Velocity component uses Vec2: `pub struct Velocity(pub Vec2)`

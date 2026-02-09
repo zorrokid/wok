@@ -6,6 +6,7 @@ use bevy::{
         system::{Commands, Query, Res},
     },
     input::ButtonInput,
+    math::Vec2,
     prelude::KeyCode,
     sprite::Sprite,
     time::Time,
@@ -15,11 +16,17 @@ use bevy::{
 use crate::level::{LEVEL_HEIGHT, LEVEL_WIDTH};
 
 // Constants
-const PLAYER_SPEED: f32 = 100.0; // pixels per second
+const PLAYER_MAX_SPEED: f32 = 100.0; // pixels per second
+const PLAYER_ACCELERATION: f32 = 800.0; // pixels per second²
+const PLAYER_DECELERATION: f32 = 1200.0; // pixels per second²
 
 // Player marker component
 #[derive(Component)]
 pub struct Player;
+
+// Velocity component for physics-based movement
+#[derive(Component)]
+pub struct Velocity(pub Vec2);
 
 pub fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Load player sprite
@@ -33,6 +40,7 @@ pub fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     commands.spawn((
         Player,
+        Velocity(Vec2::ZERO),
         Sprite::from_image(player_texture),
         Transform::from_xyz(spawn_x, spawn_y, 10.0),
     ));
@@ -41,21 +49,49 @@ pub fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
 pub fn player_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
-    mut query: Query<&mut Transform, With<Player>>,
+    mut query: Query<(&mut Transform, &mut Velocity), With<Player>>,
 ) {
-    if let Ok(mut transform) = query.single_mut() {
-        let mut direction = 0.0;
+    if let Ok((mut transform, mut velocity)) = query.single_mut() {
+        let delta = time.delta_secs();
 
-        // Read keyboard input
+        // Determine target velocity based on input
+        let mut target_velocity_x = 0.0;
         if keyboard.pressed(KeyCode::ArrowLeft) {
-            direction -= 1.0;
+            target_velocity_x -= PLAYER_MAX_SPEED;
         }
         if keyboard.pressed(KeyCode::ArrowRight) {
-            direction += 1.0;
+            target_velocity_x += PLAYER_MAX_SPEED;
         }
 
-        // Calculate new position
-        let movement = direction * PLAYER_SPEED * time.delta_secs();
-        transform.translation.x += movement;
+        // Apply acceleration or deceleration
+        if target_velocity_x != 0.0 {
+            // Accelerate toward target
+            let accel_direction = (target_velocity_x - velocity.0.x).signum();
+            velocity.0.x += accel_direction * PLAYER_ACCELERATION * delta;
+
+            // Clamp to target (don't overshoot)
+            if accel_direction > 0.0 {
+                velocity.0.x = velocity.0.x.min(target_velocity_x);
+            } else {
+                velocity.0.x = velocity.0.x.max(target_velocity_x);
+            }
+        } else {
+            // Decelerate to zero
+            if velocity.0.x.abs() > 0.0 {
+                let decel_amount = PLAYER_DECELERATION * delta;
+
+                if velocity.0.x > 0.0 {
+                    velocity.0.x = (velocity.0.x - decel_amount).max(0.0);
+                } else if velocity.0.x < 0.0 {
+                    velocity.0.x = (velocity.0.x + decel_amount).min(0.0);
+                }
+            }
+        }
+
+        // Clamp velocity to max speed
+        velocity.0.x = velocity.0.x.clamp(-PLAYER_MAX_SPEED, PLAYER_MAX_SPEED);
+
+        // Apply velocity to position
+        transform.translation.x += velocity.0.x * delta;
     }
 }
