@@ -12,12 +12,12 @@ When the user starts the application, a game window is displayed with an empty b
 - Window can also be closed via OS window controls (X button)
 
 ## Acceptance Criteria
-- [ ] Window opens when application starts
-- [ ] Window displays "WoK" as title
-- [ ] Window is 800x600 pixels by default
-- [ ] Background is black/empty
-- [ ] Pressing ESC exits cleanly
-- [ ] Closing window via OS controls exits cleanly
+- [x] Window opens when application starts
+- [x] Window displays "WoK" as title
+- [x] Window is 800x600 pixels by default
+- [x] Background is black/empty
+- [x] Pressing ESC exits cleanly
+- [x] Closing window via OS controls exits cleanly
 
 ---
 
@@ -35,12 +35,12 @@ Use Bevy's `DefaultPlugins` to handle window creation and basic functionality. A
 - `exit_on_esc()` - Listens for ESC key and sends exit event
 
 ### Tasks
-- [ ] Replace `println!("Hello, world!")` with Bevy app setup
-- [ ] Configure `DefaultPlugins` with window settings (title: "WoK", resolution: 800x600)
-- [ ] Add `exit_on_esc` system to `Update` schedule
-- [ ] Test: Run application and verify window appears
-- [ ] Test: Press ESC and verify clean exit
-- [ ] Test: Close window with OS controls and verify clean exit
+- [x] Replace `println!("Hello, world!")` with Bevy app setup
+- [x] Configure `DefaultPlugins` with window settings (title: "WoK", resolution: 800x600)
+- [x] Add `exit_on_esc` system to `Update` schedule
+- [x] Test: Run application and verify window appears
+- [x] Test: Press ESC and verify clean exit
+- [x] Test: Close window with OS controls and verify clean exit
 
 ### Notes
 - Bevy's `DefaultPlugins` includes `WindowPlugin` which handles window creation
