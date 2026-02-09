@@ -19,6 +19,9 @@ use crate::level::{LEVEL_HEIGHT, LEVEL_WIDTH};
 const PLAYER_MAX_SPEED: f32 = 100.0; // pixels per second
 const PLAYER_ACCELERATION: f32 = 800.0; // pixels per second²
 const PLAYER_DECELERATION: f32 = 1200.0; // pixels per second²
+const JUMP_VELOCITY: f32 = 300.0; // pixels per second
+const GRAVITY: f32 = 980.0; // pixels per second²
+const GROUND_LEVEL: f32 = -(LEVEL_HEIGHT as f32 * 16.0) / 2.0 + (3.0 * 16.0) + 8.0; // Same as spawn Y
 
 // Player marker component
 #[derive(Component)]
@@ -54,7 +57,15 @@ pub fn player_movement(
     if let Ok((mut transform, mut velocity)) = query.single_mut() {
         let delta = time.delta_secs();
 
-        // Determine target velocity based on input
+        // Check if player is on ground
+        let is_grounded = transform.translation.y <= GROUND_LEVEL;
+
+        // Jump input
+        if keyboard.just_pressed(KeyCode::KeyZ) && is_grounded {
+            velocity.0.y = JUMP_VELOCITY;
+        }
+
+        // Horizontal movement - determine target velocity based on input
         let mut target_velocity_x = 0.0;
         if keyboard.pressed(KeyCode::ArrowLeft) {
             target_velocity_x -= PLAYER_MAX_SPEED;
@@ -63,7 +74,7 @@ pub fn player_movement(
             target_velocity_x += PLAYER_MAX_SPEED;
         }
 
-        // Apply acceleration or deceleration
+        // Apply acceleration or deceleration (horizontal)
         if target_velocity_x != 0.0 {
             // Accelerate toward target
             let accel_direction = (target_velocity_x - velocity.0.x).signum();
@@ -88,10 +99,20 @@ pub fn player_movement(
             }
         }
 
-        // Clamp velocity to max speed
+        // Clamp horizontal velocity to max speed
         velocity.0.x = velocity.0.x.clamp(-PLAYER_MAX_SPEED, PLAYER_MAX_SPEED);
+
+        // Apply gravity
+        velocity.0.y -= GRAVITY * delta;
 
         // Apply velocity to position
         transform.translation.x += velocity.0.x * delta;
+        transform.translation.y += velocity.0.y * delta;
+
+        // Ground collision
+        if transform.translation.y <= GROUND_LEVEL {
+            transform.translation.y = GROUND_LEVEL;
+            velocity.0.y = 0.0;
+        }
     }
 }

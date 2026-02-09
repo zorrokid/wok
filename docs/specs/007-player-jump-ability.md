@@ -13,13 +13,13 @@ Implement basic jump mechanic for the player. When pressing the Z key, the playe
 - Frame-rate independent physics
 
 ## Acceptance Criteria
-- [ ] Pressing Z key makes player jump upward
-- [ ] Player cannot jump while already in air (no double jump yet)
-- [ ] Gravity pulls player back down
-- [ ] Player lands on ground level
-- [ ] Can move left/right while jumping (air control)
-- [ ] Jump height is consistent and feels good
-- [ ] No jumping through ground or getting stuck
+- [x] Pressing Z key makes player jump upward
+- [x] Player cannot jump while already in air (no double jump yet)
+- [x] Gravity pulls player back down
+- [x] Player lands on ground level
+- [x] Can move left/right while jumping (air control)
+- [x] Jump height is consistent and feels good
+- [x] No jumping through ground or getting stuck
 
 ---
 
@@ -43,19 +43,19 @@ Add gravity that constantly applies downward acceleration to velocity.y. When Z 
 - `GROUND_LEVEL` - Y position of ground (calculated from spawn position)
 
 ### Tasks
-- [ ] Define jump and gravity constants
-- [ ] Calculate GROUND_LEVEL constant from player spawn position
-- [ ] Add jump input detection (Z key pressed)
-- [ ] Add ground detection (check if player.y <= GROUND_LEVEL)
-- [ ] Apply jump impulse to velocity.y when Z pressed and grounded
-- [ ] Apply gravity to velocity.y every frame
-- [ ] Apply velocity.y to transform position
-- [ ] Clamp player Y position to ground level
-- [ ] Reset velocity.y to zero when landing on ground
-- [ ] Test: Run and verify player jumps when Z pressed
-- [ ] Test: Verify player falls back down with gravity
-- [ ] Test: Verify player can't jump in air
-- [ ] Test: Verify player can move left/right while jumping
+- [x] Define jump and gravity constants
+- [x] Calculate GROUND_LEVEL constant from player spawn position
+- [x] Add jump input detection (Z key pressed)
+- [x] Add ground detection (check if player.y <= GROUND_LEVEL)
+- [x] Apply jump impulse to velocity.y when Z pressed and grounded
+- [x] Apply gravity to velocity.y every frame
+- [x] Apply velocity.y to transform position
+- [x] Clamp player Y position to ground level
+- [x] Reset velocity.y to zero when landing on ground
+- [x] Test: Run and verify player jumps when Z pressed
+- [x] Test: Verify player falls back down with gravity
+- [x] Test: Verify player can't jump in air
+- [x] Test: Verify player can move left/right while jumping
 
 ### Notes
 - Ground level calculation: same Y position used in spawn_player (~48 pixels above tilemap bottom)
