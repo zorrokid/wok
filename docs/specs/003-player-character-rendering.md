@@ -12,12 +12,12 @@ Render a simple player character sprite on screen. The player is represented by 
 - Player entity has a marker component for identification
 
 ## Acceptance Criteria
-- [ ] Player sprite is visible on screen
-- [ ] Player is 16x16 pixels in size
-- [ ] Player spawns at a reasonable starting position (on ground level)
-- [ ] Player renders above tilemap tiles (z-order correct)
-- [ ] Player marker component exists for future systems to query
-- [ ] Placeholder sprite asset is loaded and displayed
+- [x] Player sprite is visible on screen
+- [x] Player is 16x16 pixels in size
+- [x] Player spawns at a reasonable starting position (on ground level)
+- [x] Player renders above tilemap tiles (z-order correct)
+- [x] Player marker component exists for future systems to query
+- [x] Placeholder sprite asset is loaded and displayed
 
 ---
 
@@ -39,15 +39,15 @@ Create a simple player entity with Bevy's sprite rendering. Use a `Player` marke
 - Configures z-order to render above tilemap
 
 ### Tasks
-- [ ] Create Player marker component
-- [ ] Create placeholder player sprite image (16x16 pixels)
-- [ ] Implement spawn_player startup system
-- [ ] Set player spawn position (e.g., x: 48.0, y: 48.0 to be on ground)
-- [ ] Configure sprite z-order (z: 10.0 for above tilemap)
-- [ ] Load player texture from assets/player.png
-- [ ] Test: Run and verify player sprite appears
-- [ ] Test: Verify player renders above tiles
-- [ ] Test: Verify player is at correct starting position
+- [x] Create Player marker component
+- [x] Create placeholder player sprite image (16x16 pixels)
+- [x] Implement spawn_player startup system
+- [x] Set player spawn position (e.g., x: 48.0, y: 48.0 to be on ground)
+- [x] Configure sprite z-order (z: 10.0 for above tilemap)
+- [x] Load player texture from assets/player.png
+- [x] Test: Run and verify player sprite appears
+- [x] Test: Verify player renders above tiles
+- [x] Test: Verify player is at correct starting position
 
 ### Notes
 - Player position is in world space pixels, not tile coordinates
