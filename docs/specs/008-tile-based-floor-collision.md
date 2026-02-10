@@ -47,31 +47,44 @@ Convert player's world position to tilemap tile coordinates. Query the tilemap s
 - `get_tile_at()` - Query tile at specific coordinates
 
 ### Tasks
-- [ ] Add function to convert world position to tile coordinates
-- [ ] Add function to check if tile type is solid
-- [ ] Query tilemap storage in player_movement system
-- [ ] Calculate tile position beneath player feet (Y - half sprite height)
-- [ ] Check if solid tile exists at that position
-- [ ] Update is_grounded based on tile presence (not fixed Y)
-- [ ] Clamp player Y position to top of solid tile when grounded
-- [ ] Remove GROUND_LEVEL constant (no longer needed)
-- [ ] Test: Run and verify player stands on ground tiles
-- [ ] Test: Verify player stands on floating platforms
-- [ ] Test: Verify player falls through empty space
-- [ ] Test: Verify jumping still works with tile collision
+- [x] Add function to convert world position to tile coordinates
+- [x] Add function to check if tile type is solid
+- [x] Query tilemap storage in player_movement system
+- [x] Calculate tile position beneath player feet (Y - half sprite height)
+- [x] Check if solid tile exists at that position
+- [x] Update is_grounded based on tile presence (not fixed Y)
+- [x] Clamp player Y position to top of solid tile when grounded
+- [x] Remove GROUND_LEVEL constant (no longer needed)
+- [x] Test: Run and verify player stands on ground tiles
+- [x] Test: Verify player stands on floating platforms
+- [x] Test: Verify player falls through empty space
+- [x] Test: Verify jumping still works with tile collision
 
 ### Notes
 - Tile coordinate calculation: 
   - `tile_x = ((world_x - tilemap_offset_x) / TILE_SIZE).floor()`
   - `tile_y = ((world_y - tilemap_offset_y) / TILE_SIZE).floor()`
 - Player feet position: `player_y - SPRITE_HEIGHT/2` (8 pixels for 16x16 sprite)
+- **Ground detection**: Check 1 pixel BELOW feet (`feet_y - 1.0`) to detect tile surface, since player standing on tile has feet at boundary
 - Tilemap offset: `-(LEVEL_WIDTH * 16.0) / 2.0` for X, `-(LEVEL_HEIGHT * 16.0) / 2.0` for Y
 - When grounded on tile, clamp Y to: `tilemap_offset_y + (tile_y + 1) * TILE_SIZE + SPRITE_HEIGHT/2`
 - Current tile types: 0 = empty/air, 1 = solid platform
-- Query pattern: Access TileStorage component to get tile at position
-- May need to pass tilemap data as resource or query it each frame
-- Consider checking multiple points (left foot, right foot) for edge cases
-- Small epsilon for ground detection to prevent floating point issues
+- Query pattern: Direct LEVEL_DATA access (no TileStorage component needed)
+- Y-axis inversion: Array index = `(LEVEL_HEIGHT - 1) - tile_y`
+
+### Implementation Issues & Solutions
+**Bug 1: Player falls through ground**
+- Problem: Checking at exact feet position missed tiles when standing on top
+- Solution: Check 1 pixel below feet (`feet_y - 1.0`) to detect ground tile
+
+**Bug 2: Gravity applied when grounded**
+- Problem: Gravity applied every frame, even when standing on ground, causing jittery falling
+- Solution: Only apply gravity when `!is_grounded || velocity.y > 0.0` (in air or jumping up)
+- Set `velocity.y = 0.0` only when grounded with non-positive velocity
+
+**Bug 3: Jump not working**
+- Problem: Setting velocity to 0 when grounded was canceling jump velocity
+- Solution: Allow gravity/movement when velocity.y > 0 (jumping), only zero out falling velocity
 
 ### Future Expansions (Not in this spec)
 - **More tile types**: Add types 2=ladder, 3=spikes, 4=one-way platform, etc.

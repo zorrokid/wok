@@ -13,7 +13,7 @@ use bevy::{
     transform::components::Transform,
 };
 
-use crate::level::{LEVEL_HEIGHT, LEVEL_WIDTH};
+use crate::level::{LEVEL_DATA, LEVEL_HEIGHT, LEVEL_WIDTH};
 
 // Constants
 const PLAYER_MAX_SPEED: f32 = 100.0; // pixels per second
@@ -21,7 +21,12 @@ const PLAYER_ACCELERATION: f32 = 800.0; // pixels per second²
 const PLAYER_DECELERATION: f32 = 1200.0; // pixels per second²
 const JUMP_VELOCITY: f32 = 300.0; // pixels per second
 const GRAVITY: f32 = 980.0; // pixels per second²
-const GROUND_LEVEL: f32 = -(LEVEL_HEIGHT as f32 * 16.0) / 2.0 + (3.0 * 16.0) + 8.0; // Same as spawn Y
+const TILE_SIZE: f32 = 16.0;
+const SPRITE_HEIGHT: f32 = 16.0;
+
+// Tilemap offset (same as in level.rs)
+const TILEMAP_OFFSET_X: f32 = -(LEVEL_WIDTH as f32 * TILE_SIZE) / 2.0;
+const TILEMAP_OFFSET_Y: f32 = -(LEVEL_HEIGHT as f32 * TILE_SIZE) / 2.0;
 
 // Player marker component
 #[derive(Component)]
@@ -31,6 +36,33 @@ pub struct Player;
 #[derive(Component)]
 pub struct Velocity(pub Vec2);
 
+// Helper function: Convert world position to tile coordinates
+fn world_to_tile_coords(world_x: f32, world_y: f32) -> (i32, i32) {
+    let tile_x = ((world_x - TILEMAP_OFFSET_X) / TILE_SIZE).floor() as i32;
+    let tile_y = ((world_y - TILEMAP_OFFSET_Y) / TILE_SIZE).floor() as i32;
+    (tile_x, tile_y)
+}
+
+// Helper function: Check if tile is solid
+fn is_solid_tile(tile_type: u32) -> bool {
+    tile_type == 1 // Type 1 is solid platform
+}
+
+// Helper function: Get tile type at position from LEVEL_DATA
+fn get_tile_type_at(tile_x: i32, tile_y: i32) -> Option<u32> {
+    if tile_x < 0 || tile_y < 0 || tile_x >= LEVEL_WIDTH as i32 || tile_y >= LEVEL_HEIGHT as i32 {
+        return None;
+    }
+    
+    // Convert tilemap Y to array index (Y=0 is bottom in tilemap, but top in array)
+    let array_y = (LEVEL_HEIGHT - 1) as i32 - tile_y;
+    if array_y < 0 || array_y >= LEVEL_HEIGHT as i32 {
+        return None;
+    }
+    
+    Some(LEVEL_DATA[array_y as usize][tile_x as usize])
+}
+
 pub fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Load player sprite
     let player_texture = asset_server.load("player.png");
@@ -38,8 +70,8 @@ pub fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Calculate spawn position: 3 tiles from left, on top of ground (3 tile rows)
     // Ground starts at y=0, is 3 tiles (48 pixels) tall
     // Player sprite center should be at ground + half player height
-    let spawn_x = -(LEVEL_WIDTH as f32 * 16.0) / 2.0 + (3.0 * 16.0);
-    let spawn_y = -(LEVEL_HEIGHT as f32 * 16.0) / 2.0 + (3.0 * 16.0) + 8.0;
+    let spawn_x = TILEMAP_OFFSET_X + (3.0 * TILE_SIZE);
+    let spawn_y = TILEMAP_OFFSET_Y + (3.0 * TILE_SIZE) + SPRITE_HEIGHT / 2.0;
 
     commands.spawn((
         Player,
@@ -57,8 +89,18 @@ pub fn player_movement(
     if let Ok((mut transform, mut velocity)) = query.single_mut() {
         let delta = time.delta_secs();
 
-        // Check if player is on ground
-        let is_grounded = transform.translation.y <= GROUND_LEVEL;
+        // Calculate player feet position
+        let feet_y = transform.translation.y - SPRITE_HEIGHT / 2.0;
+        
+        // Check for ground slightly below feet (1 pixel below to detect tile surface)
+        let check_y = feet_y - 1.0;
+        
+        // Convert position to tile coordinates
+        let (tile_x, tile_y) = world_to_tile_coords(transform.translation.x, check_y);
+        
+        // Check if there's a solid tile beneath the player
+        let tile_below = get_tile_type_at(tile_x, tile_y);
+        let is_grounded = tile_below.map(is_solid_tile).unwrap_or(false);
 
         // Jump input
         if keyboard.just_pressed(KeyCode::KeyZ) && is_grounded {
@@ -102,17 +144,29 @@ pub fn player_movement(
         // Clamp horizontal velocity to max speed
         velocity.0.x = velocity.0.x.clamp(-PLAYER_MAX_SPEED, PLAYER_MAX_SPEED);
 
-        // Apply gravity
-        velocity.0.y -= GRAVITY * delta;
+        // Apply gravity (only when not grounded or when jumping up)
+        if !is_grounded || velocity.0.y > 0.0 {
+            velocity.0.y -= GRAVITY * delta;
+        } else {
+            velocity.0.y = 0.0; // Stop falling when on ground
+        }
 
         // Apply velocity to position
         transform.translation.x += velocity.0.x * delta;
         transform.translation.y += velocity.0.y * delta;
 
-        // Ground collision
-        if transform.translation.y <= GROUND_LEVEL {
-            transform.translation.y = GROUND_LEVEL;
-            velocity.0.y = 0.0;
+        // Ground collision - snap to tile surface if we moved into a tile
+        let new_feet_y = transform.translation.y - SPRITE_HEIGHT / 2.0;
+        let check_ground_y = new_feet_y - 1.0; // Check slightly below feet
+        let (new_tile_x, new_tile_y) = world_to_tile_coords(transform.translation.x, check_ground_y);
+        
+        if let Some(tile_type) = get_tile_type_at(new_tile_x, new_tile_y) {
+            if is_solid_tile(tile_type) {
+                // Snap to top of tile
+                let tile_top_y = TILEMAP_OFFSET_Y + ((new_tile_y + 1) as f32 * TILE_SIZE);
+                transform.translation.y = tile_top_y + SPRITE_HEIGHT / 2.0;
+                velocity.0.y = 0.0;
+            }
         }
     }
 }
