@@ -204,15 +204,16 @@ pub fn player_movement(
         transform.translation.x += velocity.0.x * delta;
         transform.translation.y += velocity.0.y * delta;
 
-        let player_cood: PlayerCoord = (*transform).into();
+        // Get updated player coordinates after movement
+        let player_coord_after: PlayerCoord = (*transform).into();
 
         // Ground collision - re-check at new position and snap if on solid tile
-        let new_check_y = player_coord.feet_y - 1.0;
+        let new_check_y = player_coord_after.feet_y - 1.0;
 
         let (new_left_tile_x, new_left_tile_y) =
-            world_to_tile_coords(player_coord.feet_x_left, new_check_y);
+            world_to_tile_coords(player_coord_after.feet_x_left, new_check_y);
         let (new_right_tile_x, new_right_tile_y) =
-            world_to_tile_coords(player_coord.feet_x_right, new_check_y);
+            world_to_tile_coords(player_coord_after.feet_x_right, new_check_y);
 
         let new_left_tile = get_tile_type_at(new_left_tile_x, new_left_tile_y);
         let new_right_tile = get_tile_type_at(new_right_tile_x, new_right_tile_y);
