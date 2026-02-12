@@ -23,6 +23,7 @@ const JUMP_VELOCITY: f32 = 300.0; // pixels per second
 const GRAVITY: f32 = 980.0; // pixels per second²
 const TILE_SIZE: f32 = 16.0;
 const SPRITE_HEIGHT: f32 = 16.0;
+const SPRITE_WIDTH: f32 = 16.0;
 
 // Tilemap offset (same as in level.rs)
 const TILEMAP_OFFSET_X: f32 = -(LEVEL_WIDTH as f32 * TILE_SIZE) / 2.0;
@@ -53,13 +54,13 @@ fn get_tile_type_at(tile_x: i32, tile_y: i32) -> Option<u32> {
     if tile_x < 0 || tile_y < 0 || tile_x >= LEVEL_WIDTH as i32 || tile_y >= LEVEL_HEIGHT as i32 {
         return None;
     }
-    
+
     // Convert tilemap Y to array index (Y=0 is bottom in tilemap, but top in array)
     let array_y = (LEVEL_HEIGHT - 1) as i32 - tile_y;
     if array_y < 0 || array_y >= LEVEL_HEIGHT as i32 {
         return None;
     }
-    
+
     Some(LEVEL_DATA[array_y as usize][tile_x as usize])
 }
 
@@ -81,6 +82,51 @@ pub fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
     ));
 }
 
+#[derive(Clone)]
+struct Coord {
+    x: f32,
+    y: f32,
+}
+
+impl Coord {
+    fn new(x: f32, y: f32) -> Self {
+        Self { x, y }
+    }
+}
+
+impl From<Transform> for Coord {
+    fn from(transform: Transform) -> Self {
+        Coord {
+            x: transform.translation.x,
+            y: transform.translation.y,
+        }
+    }
+}
+
+struct PlayerCoord {
+    center: Coord,
+    feet_y: f32,
+    feet_x_left: f32,
+    feet_x_right: f32,
+}
+
+impl PlayerCoord {
+    fn new(center: Coord) -> Self {
+        Self {
+            center: center.clone(),
+            feet_y: center.y - SPRITE_HEIGHT / 2.0,
+            feet_x_left: center.x - (SPRITE_WIDTH / 2.0 - 3.0),
+            feet_x_right: center.x + (SPRITE_WIDTH / 2.0 - 3.0),
+        }
+    }
+}
+
+impl From<Transform> for PlayerCoord {
+    fn from(transform: Transform) -> Self {
+        PlayerCoord::new(transform.into())
+    }
+}
+
 pub fn player_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
@@ -89,18 +135,21 @@ pub fn player_movement(
     if let Ok((mut transform, mut velocity)) = query.single_mut() {
         let delta = time.delta_secs();
 
-        // Calculate player feet position
-        let feet_y = transform.translation.y - SPRITE_HEIGHT / 2.0;
-        
+        let player_coord: PlayerCoord = (*transform).into();
+
         // Check for ground slightly below feet (1 pixel below to detect tile surface)
-        let check_y = feet_y - 1.0;
-        
-        // Convert position to tile coordinates
-        let (tile_x, tile_y) = world_to_tile_coords(transform.translation.x, check_y);
-        
-        // Check if there's a solid tile beneath the player
-        let tile_below = get_tile_type_at(tile_x, tile_y);
-        let is_grounded = tile_below.map(is_solid_tile).unwrap_or(false);
+        let check_y = player_coord.feet_y - 1.0;
+
+        // Convert both foot positions to tile coordinates
+        let (left_tile_x, left_tile_y) = world_to_tile_coords(player_coord.feet_x_left, check_y);
+        let (right_tile_x, right_tile_y) = world_to_tile_coords(player_coord.feet_x_right, check_y);
+
+        // Check if there's a solid tile beneath either foot
+        let left_tile_below = get_tile_type_at(left_tile_x, left_tile_y);
+        let right_tile_below = get_tile_type_at(right_tile_x, right_tile_y);
+
+        let is_grounded = left_tile_below.map(is_solid_tile).unwrap_or(false)
+            || right_tile_below.map(is_solid_tile).unwrap_or(false);
 
         // Jump input
         if keyboard.just_pressed(KeyCode::KeyZ) && is_grounded {
@@ -155,18 +204,31 @@ pub fn player_movement(
         transform.translation.x += velocity.0.x * delta;
         transform.translation.y += velocity.0.y * delta;
 
-        // Ground collision - snap to tile surface if we moved into a tile
-        let new_feet_y = transform.translation.y - SPRITE_HEIGHT / 2.0;
-        let check_ground_y = new_feet_y - 1.0; // Check slightly below feet
-        let (new_tile_x, new_tile_y) = world_to_tile_coords(transform.translation.x, check_ground_y);
-        
-        if let Some(tile_type) = get_tile_type_at(new_tile_x, new_tile_y) {
-            if is_solid_tile(tile_type) {
-                // Snap to top of tile
-                let tile_top_y = TILEMAP_OFFSET_Y + ((new_tile_y + 1) as f32 * TILE_SIZE);
-                transform.translation.y = tile_top_y + SPRITE_HEIGHT / 2.0;
-                velocity.0.y = 0.0;
-            }
+        let player_cood: PlayerCoord = (*transform).into();
+
+        // Ground collision - re-check at new position and snap if on solid tile
+        let new_check_y = player_coord.feet_y - 1.0;
+
+        let (new_left_tile_x, new_left_tile_y) =
+            world_to_tile_coords(player_coord.feet_x_left, new_check_y);
+        let (new_right_tile_x, new_right_tile_y) =
+            world_to_tile_coords(player_coord.feet_x_right, new_check_y);
+
+        let new_left_tile = get_tile_type_at(new_left_tile_x, new_left_tile_y);
+        let new_right_tile = get_tile_type_at(new_right_tile_x, new_right_tile_y);
+
+        let left_solid = new_left_tile.map(is_solid_tile).unwrap_or(false);
+        let right_solid = new_right_tile.map(is_solid_tile).unwrap_or(false);
+
+        if left_solid || right_solid {
+            let snap_tile_y = if left_solid {
+                new_left_tile_y
+            } else {
+                new_right_tile_y
+            };
+            let tile_top_y = TILEMAP_OFFSET_Y + ((snap_tile_y + 1) as f32 * TILE_SIZE);
+            transform.translation.y = tile_top_y + SPRITE_HEIGHT / 2.0;
+            velocity.0.y = 0.0;
         }
     }
 }

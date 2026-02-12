@@ -65,7 +65,12 @@ Convert player's world position to tilemap tile coordinates. Query the tilemap s
   - `tile_x = ((world_x - tilemap_offset_x) / TILE_SIZE).floor()`
   - `tile_y = ((world_y - tilemap_offset_y) / TILE_SIZE).floor()`
 - Player feet position: `player_y - SPRITE_HEIGHT/2` (8 pixels for 16x16 sprite)
-- **Ground detection**: Check 1 pixel BELOW feet (`feet_y - 1.0`) to detect tile surface, since player standing on tile has feet at boundary
+- **Ground detection**: Check tiles beneath BOTH left and right feet edges, not just center
+  - **Left foot**: Check at `player_x - (SPRITE_WIDTH/2 - 3)` (3 pixels inside left edge)
+  - **Right foot**: Check at `player_x + (SPRITE_WIDTH/2 - 3)` (3 pixels inside right edge)
+  - Check 1 pixel BELOW feet (`feet_y - 1.0`) to detect tile surface
+  - Player is grounded if **either** foot position has a solid tile
+  - Note: Known asymmetry issue on left vs right platform edges (see Bug 5)
 - Tilemap offset: `-(LEVEL_WIDTH * 16.0) / 2.0` for X, `-(LEVEL_HEIGHT * 16.0) / 2.0` for Y
 - When grounded on tile, clamp Y to: `tilemap_offset_y + (tile_y + 1) * TILE_SIZE + SPRITE_HEIGHT/2`
 - Current tile types: 0 = empty/air, 1 = solid platform
@@ -77,14 +82,38 @@ Convert player's world position to tilemap tile coordinates. Query the tilemap s
 - Problem: Checking at exact feet position missed tiles when standing on top
 - Solution: Check 1 pixel below feet (`feet_y - 1.0`) to detect ground tile
 
-**Bug 2: Gravity applied when grounded**
+**Bug 2: Player falls through left edge of platforms**
+- Problem: Single-point collision at player center causes fall-through on left platform edge
+- Root cause: Center point moves off platform before sprite visually leaves the platform
+- Solution: Check BOTH feet positions (left and right edges), grounded if either foot on solid tile
+- Implementation: Check at `player_x ± SPRITE_WIDTH/2` to get left/right foot positions at sprite edges
+
+**Bug 3: Gravity applied when grounded**
 - Problem: Gravity applied every frame, even when standing on ground, causing jittery falling
 - Solution: Only apply gravity when `!is_grounded || velocity.y > 0.0` (in air or jumping up)
 - Set `velocity.y = 0.0` only when grounded with non-positive velocity
 
-**Bug 3: Jump not working**
+**Bug 4: Jump not working**
 - Problem: Setting velocity to 0 when grounded was canceling jump velocity
 - Solution: Allow gravity/movement when velocity.y > 0 (jumping), only zero out falling velocity
+
+**Bug 5: Left/Right platform edge asymmetry (UNRESOLVED)**
+- Problem: Player falls off left edge of platforms sooner than right edge
+- Investigation findings:
+  - Single-point center collision was replaced with dual-foot collision (left + right)
+  - Both feet check at player_x ± (SPRITE_WIDTH/2 - 3.0) (3 pixels inside sprite edges)
+  - Debug output shows both tiles solid (Some(1)) before movement
+  - After horizontal movement, Y position can drift causing checks at different tile rows
+  - Pre-movement grounded check uses different Y than post-movement snap check
+  - Root cause: Y position consistency issue between frames causing tile row misalignment
+- Attempted solutions:
+  - Check collision at sprite edges (±SPRITE_WIDTH/2): Still asymmetric
+  - Check 1 pixel inside edges: Still asymmetric  
+  - Check 3 pixels inside edges: Still asymmetric
+  - Maintain Y position when grounded by snapping before horizontal movement: Still asymmetric
+- Current implementation: Checks both feet at 3 pixels from sprite edges, snaps Y when grounded
+- Impact: Minor gameplay issue, more noticeable on left side
+- Status: Requires further investigation into tile boundary rounding or coordinate system
 
 ### Future Expansions (Not in this spec)
 - **More tile types**: Add types 2=ladder, 3=spikes, 4=one-way platform, etc.
