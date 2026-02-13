@@ -16,11 +16,13 @@ pub struct Coord {
 }
 
 impl Coord {
+    /// Creates a new 2D coordinate at the specified position.
     pub fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
 }
 
+/// Extracts 2D position from Bevy transform component.
 impl From<Transform> for Coord {
     fn from(transform: Transform) -> Self {
         Coord {
@@ -39,6 +41,10 @@ pub struct PlayerCoord {
 }
 
 impl PlayerCoord {
+    /// Creates player coordinates from center position, calculating foot positions for collision detection.
+    ///
+    /// Feet are positioned at the bottom of the sprite, with collision checks inset from the edges
+    /// by `FOOT_EDGE_INSET` to prevent premature edge detection.
     pub fn new(center: Coord) -> Self {
         Self {
             center: center.clone(),
@@ -54,6 +60,7 @@ impl PlayerCoord {
     }
 }
 
+/// Converts Bevy transform to player coordinates with calculated foot positions.
 impl From<Transform> for PlayerCoord {
     fn from(transform: Transform) -> Self {
         PlayerCoord::new(transform.into())

@@ -52,6 +52,19 @@ fn check_feet_tiles(
     }
 }
 
+/// Player movement system handling input, physics, and collision detection.
+///
+/// This system runs each frame and performs the following:
+/// 1. Reads keyboard input (arrow keys for movement, Z for jump)
+/// 2. Checks if player is grounded using dual-foot collision detection
+/// 3. Updates horizontal velocity based on input with smooth acceleration/deceleration
+/// 4. Updates vertical velocity with gravity and jump handling
+/// 5. Applies velocity to player position
+/// 6. Snaps player to ground surface if landing on solid tiles
+///
+/// The collision system checks both feet independently, allowing the player to stand
+/// on platform edges. When landing, the player snaps to the tile surface to prevent
+/// floating or sinking into the ground.
 pub fn player_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
@@ -112,6 +125,10 @@ pub fn player_movement(
     }
 }
 
+/// Calculates vertical velocity with gravity and jump handling.
+///
+/// Applies gravity when airborne or moving upward (jumping). When grounded and not jumping,
+/// velocity is set to zero to prevent the player from "sticking" to the ground or drifting.
 fn get_velocity_y(
     is_grounded: bool,
     current_velocity_y: f32,
@@ -134,7 +151,9 @@ fn get_velocity_y(
     velocity
 }
 
-// Horizontal movement - determine target velocity based on input
+/// Determines target horizontal velocity based on directional input.
+///
+/// Left takes priority when both directions are pressed.
 fn get_target_velocity_x(is_left_pressed: bool, is_right_pressed: bool) -> f32 {
     match (is_left_pressed, is_right_pressed) {
         (true, _) => -PLAYER_MAX_SPEED,
@@ -143,6 +162,10 @@ fn get_target_velocity_x(is_left_pressed: bool, is_right_pressed: bool) -> f32 {
     }
 }
 
+/// Checks if player is standing on solid ground.
+///
+/// Returns true if EITHER foot is on a solid tile, allowing the player to stand
+/// on platform edges without falling through prematurely.
 fn is_grounded(
     player_coord: &PlayerCoord,
     world_to_tile_coords: impl Fn(f32, f32) -> (i32, i32),
@@ -155,6 +178,12 @@ fn is_grounded(
         || feet_tiles.right.map(&is_solid_tile).unwrap_or(false)
 }
 
+/// Calculates the Y position to snap player to when landing on solid ground.
+///
+/// Returns the Y coordinate for the player's center (sprite center) aligned to the top
+/// of the tile surface. Returns None if no solid ground beneath either foot.
+///
+/// When both feet are on solid tiles, snaps to the left foot's tile to maintain stability.
 fn ground_snap_y(
     player_coord_after: &PlayerCoord,
     world_to_tile_coords: impl Fn(f32, f32) -> (i32, i32),
@@ -182,6 +211,11 @@ fn ground_snap_y(
     }
 }
 
+/// Applies acceleration or deceleration to horizontal velocity.
+///
+/// When moving toward a target velocity, accelerates without overshooting.
+/// When no input is given, decelerates smoothly to zero without oscillation.
+/// Enforces maximum speed limit in both directions.
 fn apply_horizontal_acceleration(
     velocity_x: f32,
     target_velocity_x: f32,

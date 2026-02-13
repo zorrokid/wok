@@ -93,15 +93,55 @@ Extract common patterns into reusable abstractions:
 - [ ] Test: Verify gameplay unchanged
 
 #### Phase 4: Add Constants for Magic Numbers
-- [ ] Add `GROUND_CHECK_OFFSET` constant (currently 1.0)
-- [ ] Replace hardcoded 1.0 with constant in collision checks
-- [ ] Document what each constant represents
+- [x] Add `GROUND_CHECK_OFFSET` constant (currently 1.0) - Done in Phase 1
+- [x] Replace hardcoded 1.0 with constant in collision checks - Done in Phase 1
+- [x] Document what each constant represents - All constants documented
 
 #### Phase 5: Cleanup and Documentation
-- [ ] Add doc comments to public functions in coord.rs
-- [ ] Add doc comments to collision helper functions
-- [ ] Verify all constants have explanatory comments
-- [ ] Final gameplay test: jumping, walking, platform edges
+
+**Current State**
+- Constants already documented: `FOOT_EDGE_INSET`, `GROUND_CHECK_OFFSET` ✓
+- Structs have basic docs: `Coord`, `PlayerCoord`, `FeetTiles` ✓
+- Most functions lack doc comments (11 functions need documentation)
+
+**Step 1: Document coord.rs Public API**
+- [x] Add doc comment to `Coord::new()` - basic constructor
+- [x] Add doc comment to `From<Transform> for Coord` - extraction from Bevy transform
+- [x] Add doc comment to `PlayerCoord::new()` - explain foot position calculation
+- [x] Add doc comment to `From<Transform> for PlayerCoord` - convenience conversion
+
+**Step 2: Document movement.rs Collision Helpers**
+- [x] Add doc comment to `is_grounded()` - explain dual-foot check logic
+- [x] Add doc comment to `ground_snap_y()` - explain snap calculation and return value
+- [x] Verify `check_feet_tiles()` comment is sufficient
+
+**Step 3: Document movement.rs Physics Functions**
+- [x] Add doc comment to `get_velocity_y()` - explain gravity and jump logic
+- [x] Convert inline comment to doc comment for `get_target_velocity_x()`
+- [x] Add doc comment to `apply_horizontal_acceleration()` - explain acceleration/deceleration
+
+**Step 4: Document Main System**
+- [x] Add comprehensive doc comment to `player_movement()` - explain overall system flow
+
+**Step 5: Final Verification**
+- [x] Run `cargo doc --no-deps --open` to verify documentation renders correctly
+- [x] Review all doc comments for clarity and completeness
+- [x] Build with `cargo build` to ensure no issues
+- [x] Final gameplay test: jumping, walking, platform edges - Ready for testing
+
+**Documentation Style Guidelines**
+- Use `///` for doc comments (not `//`)
+- Be concise but complete - document **what** and **why**, not **how**
+- Use active voice ("Calculates..." not "This function calculates...")
+- Document non-obvious behavior (edge cases, special handling)
+- Don't state the obvious when function name is clear
+
+**Key Behaviors to Document**
+- Dual-foot collision: checks both feet, player grounded if EITHER solid
+- Snap position: tile top + sprite half-height for center alignment
+- Gravity: applies when airborne OR moving upward
+- Acceleration: clamps to target (no overshoot)
+- Deceleration: stops at zero (no oscillation)
 
 ### Notes
 
