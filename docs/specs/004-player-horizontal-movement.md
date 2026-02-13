@@ -28,10 +28,10 @@ Create a movement system that reads keyboard input and directly modifies the pla
 
 ### Components & Systems
 **Systems:**
-- `player_movement()` - Update system that handles keyboard input and position updates
+- `player_movement()` (in `src/player/movement.rs`) - Update system that handles keyboard input and position updates
 - Reads left/right arrow key state
 - Calculates new position based on speed and delta time
-- Clamps position to screen boundaries
+- Note: Boundary clamping removed in spec 005 (camera follow)
 
 **Resources:**
 - `Time` - For delta time (frame-independent movement)
@@ -56,15 +56,19 @@ Create a movement system that reads keyboard input and directly modifies the pla
 - [x] Test: Verify no jittery/stuttering movement
 
 ### Notes
+- **Module structure**: After refactoring, player code split into:
+  - `src/player/mod.rs` - Components, constants, coordinate types
+  - `src/player/movement.rs` - Movement logic (pure functions)
+  - `src/player/spawn.rs` - Player spawn logic
 - Screen bounds calculation: Based on 800x600 window with centered tilemap
   - Tilemap is 20 tiles * 16 pixels = 320 pixels wide
   - Tilemap center offset: -160 pixels from world origin
   - Left boundary: -160 + 8 (half player width) = -152
   - Right boundary: 160 - 8 (half player width) = 152
+  - **Note**: Boundary clamping removed in spec 005 (camera follow)
 - Use `Time` resource for delta_time to ensure frame-rate independent movement
 - Direct position modification (not velocity-based) for immediate response
+  - **Note**: Replaced with velocity-based physics in spec 006
 - Query: `Query<&mut Transform, With<Player>>`
 - Movement speed of 100.0 pixels/second is a good starting point, can be tuned
-- Consider adding separate constants for screen bounds to make them easy to adjust
 - Player sprite is 16x16, so add 8 pixel padding from edges to keep fully visible
-- This is foundation for physics later - velocity component can replace direct movement

@@ -33,12 +33,16 @@ Add a Velocity component to the player to track current movement speed. Instead 
   - y component reserved for future jumping/gravity (spec 007+)
 
 **Systems:**
-- Modify `player_movement()` - Apply acceleration/deceleration to velocity.x, then velocity to position
+- Modify `player_movement()` (in `src/player/movement.rs`) - Apply acceleration/deceleration to velocity.x, then velocity to position
 
-**Constants:**
-- `PLAYER_ACCELERATION` - How fast player speeds up horizontally (e.g., 800.0 pixels/sec²)
-- `PLAYER_DECELERATION` - How fast player slows down horizontally (e.g., 1200.0 pixels/sec²)
-- `PLAYER_MAX_SPEED` - Maximum horizontal movement speed (e.g., 100.0 pixels/sec)
+**Constants (in `src/player/mod.rs`):**
+- `PLAYER_ACCELERATION` - How fast player speeds up horizontally (800.0 pixels/sec²)
+- `PLAYER_DECELERATION` - How fast player slows down horizontally (1200.0 pixels/sec²)
+- `PLAYER_MAX_SPEED` - Maximum horizontal movement speed (100.0 pixels/sec)
+
+**Functions:**
+- `apply_horizontal_acceleration()` - Pure function calculating new horizontal velocity with acceleration/deceleration
+- `get_target_velocity_x()` - Determines target velocity based on input
 
 ### Tasks
 - [x] Create Velocity component as Vec2 (x and y components)

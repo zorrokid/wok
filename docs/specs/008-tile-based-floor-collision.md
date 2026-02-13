@@ -31,20 +31,24 @@ Convert player's world position to tilemap tile coordinates. Query the tilemap s
 
 ### Components & Systems
 **Systems:**
-- Modify `player_movement()` to use tile-based collision instead of fixed ground level
+- Modify `player_movement()` (in `src/player/movement.rs`) to use tile-based collision instead of fixed ground level
 - Add tile position calculation (world pos → tile coords)
 - Query tilemap for tiles at calculated position
 - Check tile type for solidity
 
-**Resources/Queries:**
-- Query tilemap entities and TileStorage
-- Access LEVEL_DATA for tile type checking
-- Calculate tile coordinates from player transform
+**Modules:**
+- `src/level/tile.rs` - Tile-related utilities and types
+- `src/player/movement.rs` - Player movement logic including collision
+- `src/player/mod.rs` - Player components and coordinate types
 
-**Helper Functions:**
+**Helper Functions (in `src/level/tile.rs`):**
 - `world_to_tile_coords()` - Convert world position to tile coordinates
-- `is_solid_tile()` - Check if tile type is solid (type 1)
-- `get_tile_at()` - Query tile at specific coordinates
+- `is_solid_tile()` - Check if TileType is solid
+- `get_tile_type_at()` - Query tile at specific coordinates, returns Option<TileType>
+
+**Types:**
+- `TileType` enum - Type-safe tile representation (Solid = 1, Empty = 0)
+- `PlayerCoord` struct (in `src/player/mod.rs`) - Encapsulates player position calculations including feet positions
 
 ### Tasks
 - [x] Add function to convert world position to tile coordinates
@@ -64,18 +68,26 @@ Convert player's world position to tilemap tile coordinates. Query the tilemap s
 - Tile coordinate calculation: 
   - `tile_x = ((world_x - tilemap_offset_x) / TILE_SIZE).floor()`
   - `tile_y = ((world_y - tilemap_offset_y) / TILE_SIZE).floor()`
+  - Implementation: `world_to_tile_coords()` in `src/level/tile.rs`
 - Player feet position: `player_y - SPRITE_HEIGHT/2` (8 pixels for 16x16 sprite)
+  - Implementation: `PlayerCoord` struct in `src/player/mod.rs`
 - **Ground detection**: Check tiles beneath BOTH left and right feet edges, not just center
   - **Left foot**: Check at `player_x - (SPRITE_WIDTH/2 - 3)` (3 pixels inside left edge)
   - **Right foot**: Check at `player_x + (SPRITE_WIDTH/2 - 3)` (3 pixels inside right edge)
   - Check 1 pixel BELOW feet (`feet_y - 1.0`) to detect tile surface
   - Player is grounded if **either** foot position has a solid tile
+  - Implementation: `is_grounded()` function in `src/player/movement.rs`
   - Note: Known asymmetry issue on left vs right platform edges (see Bug 5)
 - Tilemap offset: `-(LEVEL_WIDTH * 16.0) / 2.0` for X, `-(LEVEL_HEIGHT * 16.0) / 2.0` for Y
+  - Constants defined in `src/level/tile.rs`
 - When grounded on tile, clamp Y to: `tilemap_offset_y + (tile_y + 1) * TILE_SIZE + SPRITE_HEIGHT/2`
+  - Implementation: `ground_snap_y()` function in `src/player/movement.rs`
 - Current tile types: 0 = empty/air, 1 = solid platform
+  - Type-safe enum: `TileType` in `src/level/tile.rs`
 - Query pattern: Direct LEVEL_DATA access (no TileStorage component needed)
+  - Implementation: `get_tile_type_at()` in `src/level/tile.rs`
 - Y-axis inversion: Array index = `(LEVEL_HEIGHT - 1) - tile_y`
+  - Handled internally by `get_tile_type_at()`
 
 ### Implementation Issues & Solutions
 **Bug 1: Player falls through ground**

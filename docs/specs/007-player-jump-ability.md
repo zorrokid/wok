@@ -30,17 +30,21 @@ Add gravity that constantly applies downward acceleration to velocity.y. When Z 
 
 ### Components & Systems
 **Systems:**
-- Modify `player_movement()` to handle jump input and apply gravity
-- Check if player is on ground (Y position check)
+- Modify `player_movement()` (in `src/player/movement.rs`) to handle jump input and apply gravity
+- Check if player is on ground using tile-based collision detection
 - Apply jump impulse when Z pressed and grounded
 - Apply gravity to velocity.y every frame
 - Apply velocity.y to position
-- Ground collision (clamp Y position and reset velocity.y)
+- Ground collision using tile-based snapping
 
-**Constants:**
-- `JUMP_VELOCITY` - Initial upward velocity when jumping (e.g., 300.0 pixels/sec)
-- `GRAVITY` - Downward acceleration (e.g., 980.0 pixels/sec²)
-- `GROUND_LEVEL` - Y position of ground (calculated from spawn position)
+**Constants (in `src/player/mod.rs`):**
+- `JUMP_VELOCITY` - Initial upward velocity when jumping (300.0 pixels/sec)
+- `GRAVITY` - Downward acceleration (980.0 pixels/sec²)
+
+**Functions:**
+- `get_velocity_y()` - Pure function calculating vertical velocity with jump and gravity
+- `is_grounded()` - Checks tile collision beneath player feet
+- `ground_snap_y()` - Calculates Y position to snap player to tile surface
 
 ### Tasks
 - [x] Define jump and gravity constants
@@ -58,11 +62,15 @@ Add gravity that constantly applies downward acceleration to velocity.y. When Z 
 - [x] Test: Verify player can move left/right while jumping
 
 ### Notes
-- Ground level calculation: same Y position used in spawn_player (~48 pixels above tilemap bottom)
 - Jump velocity of 300.0 with gravity 980.0 gives ~0.9 tile height jump
 - Gravity constant: Earth gravity is ~980 pixels/sec² (good starting point)
-- Ground detection: simple check `transform.translation.y <= GROUND_LEVEL`
-- When on ground: set `transform.translation.y = GROUND_LEVEL` and `velocity.0.y = 0.0`
+- Ground detection: Uses tile-based collision (see spec 008-tile-based-floor-collision.md)
+  - Checks for solid tiles beneath both feet
+  - Implementation in `is_grounded()` function
+- When on ground: snap to tile surface via `ground_snap_y()` and set `velocity.0.y = 0.0`
+- Jump logic extracted to pure function `get_velocity_y()` for testability
+- Gravity only applied when not grounded OR when jumping up (velocity.y > 0.0)
+  - This prevents jittery behavior when standing on ground
 - Jump only applies when grounded: prevents mid-air jumping
 - Use `keyboard.just_pressed()` for jump (not `pressed()`) for single jump per press
 - Horizontal velocity (velocity.x) is independent - player can move in air
