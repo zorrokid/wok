@@ -68,9 +68,22 @@ Extract common patterns into reusable abstractions:
 - Gameplay behavior unchanged (pure refactoring)
 
 #### Phase 2: Add Tests for Coordinate Types
-- [ ] Add test for `PlayerCoord::new()` feet position calculations
-- [ ] Add test for `ground_check_y()` method
-- [ ] Run tests with `cargo test`
+- [x] Add test for `PlayerCoord::new()` feet position calculations
+- [x] Add test for `ground_check_y()` method
+- [x] Run tests with `cargo test`
+
+**Status: Complete** ✓
+- Added 7 comprehensive unit tests to `src/player/coord.rs`:
+  1. `test_coord_new()` - Basic Coord construction
+  2. `test_player_coord_feet_positions()` - Feet X/Y calculations with specific values
+  3. `test_player_coord_at_origin()` - Edge case at (0, 0)
+  4. `test_ground_check_y()` - Ground check offset calculation
+  5. `test_ground_check_y_consistency()` - Verify offset constant applied correctly
+  6. `test_feet_width()` - Verify feet are correct distance apart
+  7. `test_center_preserved()` - Ensure center coordinate stored correctly
+- All tests pass: `7 passed; 0 failed`
+- Test coverage validates coordinate math and constants
+- Coordinate types now have solid test foundation
 
 #### Phase 3: Extract Common Collision Patterns
 - [ ] Identify shared logic between `is_grounded()` and `ground_snap_y()`
