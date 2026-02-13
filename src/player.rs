@@ -161,12 +161,8 @@ pub fn player_movement(
             is_solid_tile,
         );
 
-        // Jump input
-        if is_jump_pressed && is_grounded {
-            velocity.0.y = JUMP_VELOCITY;
-        }
-
         let target_velocity_x = get_target_velocity_x(is_left_pressed, is_right_pressed);
+
         velocity.0.x = apply_horizontl_acceleration(
             velocity.0.x,
             target_velocity_x,
@@ -176,7 +172,13 @@ pub fn player_movement(
             PLAYER_MAX_SPEED,
         );
 
-        velocity.0.y = get_velocity_y(is_grounded, velocity.0.y, delta);
+        velocity.0.y = get_velocity_y(
+            is_grounded,
+            velocity.0.y,
+            delta,
+            JUMP_VELOCITY,
+            is_jump_pressed,
+        );
 
         // Apply velocity to position
         transform.translation.x += velocity.0.x * delta;
@@ -200,8 +202,19 @@ pub fn player_movement(
     }
 }
 
-fn get_velocity_y(is_grounded: bool, current_velocity_y: f32, delta: f32) -> f32 {
+fn get_velocity_y(
+    is_grounded: bool,
+    current_velocity_y: f32,
+    delta: f32,
+    jump_velocity: f32,
+    is_jump_pressed: bool,
+) -> f32 {
     let mut velocity = current_velocity_y;
+
+    if is_jump_pressed && is_grounded {
+        velocity = jump_velocity;
+    }
+
     // Apply gravity (only when not grounded or when jumping up)
     if !is_grounded || velocity > 0.0 {
         velocity -= GRAVITY * delta;
