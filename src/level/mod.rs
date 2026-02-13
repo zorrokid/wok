@@ -1,3 +1,5 @@
+pub mod tile;
+
 use bevy::{
     asset::{AssetServer, Handle},
     camera::Camera2d,

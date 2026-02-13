@@ -1,146 +1,21 @@
 use bevy::{
-    asset::AssetServer,
     ecs::{
-        component::Component,
         query::With,
-        system::{Commands, Query, Res},
+        system::{Query, Res},
     },
     input::ButtonInput,
-    math::Vec2,
     prelude::KeyCode,
-    sprite::Sprite,
     time::Time,
     transform::components::Transform,
 };
 
-use crate::level::{LEVEL_DATA, LEVEL_HEIGHT, LEVEL_WIDTH};
-
-// Constants
-const PLAYER_MAX_SPEED: f32 = 100.0; // pixels per second
-const PLAYER_ACCELERATION: f32 = 800.0; // pixels per second²
-const PLAYER_DECELERATION: f32 = 1200.0; // pixels per second²
-const JUMP_VELOCITY: f32 = 300.0; // pixels per second
-const GRAVITY: f32 = 980.0; // pixels per second²
-const TILE_SIZE: f32 = 16.0;
-const SPRITE_HEIGHT: f32 = 16.0;
-const SPRITE_WIDTH: f32 = 16.0;
-
-// Tilemap offset (same as in level.rs)
-const TILEMAP_OFFSET_X: f32 = -(LEVEL_WIDTH as f32 * TILE_SIZE) / 2.0;
-const TILEMAP_OFFSET_Y: f32 = -(LEVEL_HEIGHT as f32 * TILE_SIZE) / 2.0;
-
-// Player marker component
-#[derive(Component)]
-pub struct Player;
-
-// Velocity component for physics-based movement
-#[derive(Component)]
-pub struct Velocity(pub Vec2);
-
-// Helper function: Convert world position to tile coordinates
-fn world_to_tile_coords(world_x: f32, world_y: f32) -> (i32, i32) {
-    let tile_x = ((world_x - TILEMAP_OFFSET_X) / TILE_SIZE).floor() as i32;
-    let tile_y = ((world_y - TILEMAP_OFFSET_Y) / TILE_SIZE).floor() as i32;
-    (tile_x, tile_y)
-}
-
-#[derive(PartialEq, Eq)]
-enum TileType {
-    Solid = 1,
-    Empty = 0,
-}
-
-impl From<u32> for TileType {
-    fn from(value: u32) -> Self {
-        match value {
-            1 => TileType::Solid,
-            _ => TileType::Empty,
-        }
-    }
-}
-
-// Helper function: Check if tile is solid
-fn is_solid_tile(tile_type: TileType) -> bool {
-    tile_type == TileType::Solid
-}
-
-// Helper function: Get tile type at position from LEVEL_DATA
-fn get_tile_type_at(tile_x: i32, tile_y: i32) -> Option<TileType> {
-    if tile_x < 0 || tile_y < 0 || tile_x >= LEVEL_WIDTH as i32 || tile_y >= LEVEL_HEIGHT as i32 {
-        return None;
-    }
-
-    // Convert tilemap Y to array index (Y=0 is bottom in tilemap, but top in array)
-    let array_y = (LEVEL_HEIGHT - 1) as i32 - tile_y;
-    if array_y < 0 || array_y >= LEVEL_HEIGHT as i32 {
-        return None;
-    }
-    let tile_type: TileType = LEVEL_DATA[array_y as usize][tile_x as usize].into();
-    Some(tile_type)
-}
-
-pub fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // Load player sprite
-    let player_texture = asset_server.load("player.png");
-
-    // Calculate spawn position: 3 tiles from left, on top of ground (3 tile rows)
-    // Ground starts at y=0, is 3 tiles (48 pixels) tall
-    // Player sprite center should be at ground + half player height
-    let spawn_x = TILEMAP_OFFSET_X + (3.0 * TILE_SIZE);
-    let spawn_y = TILEMAP_OFFSET_Y + (3.0 * TILE_SIZE) + SPRITE_HEIGHT / 2.0;
-
-    commands.spawn((
-        Player,
-        Velocity(Vec2::ZERO),
-        Sprite::from_image(player_texture),
-        Transform::from_xyz(spawn_x, spawn_y, 10.0),
-    ));
-}
-
-#[derive(Clone)]
-struct Coord {
-    x: f32,
-    y: f32,
-}
-
-impl Coord {
-    fn new(x: f32, y: f32) -> Self {
-        Self { x, y }
-    }
-}
-
-impl From<Transform> for Coord {
-    fn from(transform: Transform) -> Self {
-        Coord {
-            x: transform.translation.x,
-            y: transform.translation.y,
-        }
-    }
-}
-
-struct PlayerCoord {
-    center: Coord,
-    feet_y: f32,
-    feet_x_left: f32,
-    feet_x_right: f32,
-}
-
-impl PlayerCoord {
-    fn new(center: Coord) -> Self {
-        Self {
-            center: center.clone(),
-            feet_y: center.y - SPRITE_HEIGHT / 2.0,
-            feet_x_left: center.x - (SPRITE_WIDTH / 2.0 - 3.0),
-            feet_x_right: center.x + (SPRITE_WIDTH / 2.0 - 3.0),
-        }
-    }
-}
-
-impl From<Transform> for PlayerCoord {
-    fn from(transform: Transform) -> Self {
-        PlayerCoord::new(transform.into())
-    }
-}
+use crate::{
+    level::tile::{TileType, get_tile_type_at, is_solid_tile, world_to_tile_coords},
+    player::{
+        GRAVITY, JUMP_VELOCITY, PLAYER_ACCELERATION, PLAYER_DECELERATION, PLAYER_MAX_SPEED, Player,
+        PlayerCoord, SPRITE_HEIGHT, TILE_SIZE, TILEMAP_OFFSET_Y, Velocity,
+    },
+};
 
 pub fn player_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
@@ -163,7 +38,7 @@ pub fn player_movement(
 
         let target_velocity_x = get_target_velocity_x(is_left_pressed, is_right_pressed);
 
-        velocity.0.x = apply_horizontl_acceleration(
+        velocity.0.x = apply_horizontal_acceleration(
             velocity.0.x,
             target_velocity_x,
             delta,
@@ -262,23 +137,22 @@ fn ground_snap_y(
     tile_size: f32,
     sprite_height: f32,
 ) -> Option<f32> {
-    let new_check_y = player_coord_after.feet_y - 1.0;
-    let (new_left_tile_x, new_left_tile_y) =
-        world_to_tile_coords(player_coord_after.feet_x_left, new_check_y);
-    let (new_right_tile_x, new_right_tile_y) =
-        world_to_tile_coords(player_coord_after.feet_x_right, new_check_y);
+    let check_y = player_coord_after.feet_y - 1.0;
+    let (left_tile_x, left_tile_y) = world_to_tile_coords(player_coord_after.feet_x_left, check_y);
+    let (right_tile_x, right_tile_y) =
+        world_to_tile_coords(player_coord_after.feet_x_right, check_y);
 
-    let new_left_tile = get_tile_type_at(new_left_tile_x, new_left_tile_y);
-    let new_right_tile = get_tile_type_at(new_right_tile_x, new_right_tile_y);
+    let left_tile = get_tile_type_at(left_tile_x, left_tile_y);
+    let right_tile = get_tile_type_at(right_tile_x, right_tile_y);
 
-    let left_solid = new_left_tile.map(&is_solid_tile).unwrap_or(false);
-    let right_solid = new_right_tile.map(&is_solid_tile).unwrap_or(false);
+    let left_solid = left_tile.map(&is_solid_tile).unwrap_or(false);
+    let right_solid = right_tile.map(&is_solid_tile).unwrap_or(false);
 
     if left_solid || right_solid {
         let snap_tile_y = if left_solid {
-            new_left_tile_y
+            left_tile_y
         } else {
-            new_right_tile_y
+            right_tile_y
         };
         let tile_top_y = tilemap_offset_y + ((snap_tile_y + 1) as f32 * tile_size);
         Some(tile_top_y + sprite_height / 2.0)
@@ -287,7 +161,7 @@ fn ground_snap_y(
     }
 }
 
-fn apply_horizontl_acceleration(
+fn apply_horizontal_acceleration(
     velocity_x: f32,
     target_velocity_x: f32,
     delta: f32,

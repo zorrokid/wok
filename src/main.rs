@@ -6,8 +6,10 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 
 use crate::{
-    camera::camera_follow, keyboard::exit_on_esc, level::setup_tilemap,
-    player::{player_movement, spawn_player},
+    camera::camera_follow,
+    keyboard::exit_on_esc,
+    level::setup_tilemap,
+    player::{movement::player_movement, spawn_player},
 };
 
 fn main() {
