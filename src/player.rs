@@ -153,6 +153,7 @@ pub fn player_movement(
         let is_right_pressed = keyboard.pressed(KeyCode::ArrowRight);
         let delta = time.delta_secs();
         let player_coord: PlayerCoord = (*transform).into();
+
         let is_grounded = is_grounded(
             &player_coord,
             world_to_tile_coords,
@@ -175,12 +176,7 @@ pub fn player_movement(
             PLAYER_MAX_SPEED,
         );
 
-        // Apply gravity (only when not grounded or when jumping up)
-        if !is_grounded || velocity.0.y > 0.0 {
-            velocity.0.y -= GRAVITY * delta;
-        } else {
-            velocity.0.y = 0.0; // Stop falling when on ground
-        }
+        velocity.0.y = get_velocity_y(is_grounded, velocity.0.y, delta);
 
         // Apply velocity to position
         transform.translation.x += velocity.0.x * delta;
@@ -202,6 +198,17 @@ pub fn player_movement(
             velocity.0.y = 0.0;
         }
     }
+}
+
+fn get_velocity_y(is_grounded: bool, current_velocity_y: f32, delta: f32) -> f32 {
+    let mut velocity = current_velocity_y;
+    // Apply gravity (only when not grounded or when jumping up)
+    if !is_grounded || velocity > 0.0 {
+        velocity -= GRAVITY * delta;
+    } else {
+        velocity = 0.0; // Stop falling when on ground
+    }
+    velocity
 }
 
 // Horizontal movement - determine target velocity based on input
