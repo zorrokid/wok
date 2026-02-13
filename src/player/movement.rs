@@ -10,10 +10,13 @@ use bevy::{
 };
 
 use crate::{
-    level::tile::{TileType, get_tile_type_at, is_solid_tile, world_to_tile_coords},
+    level::tile::{
+        TILE_SIZE, TILEMAP_OFFSET_Y, TileType, get_tile_type_at, is_solid_tile,
+        world_to_tile_coords,
+    },
     player::{
         GRAVITY, JUMP_VELOCITY, PLAYER_ACCELERATION, PLAYER_DECELERATION, PLAYER_MAX_SPEED, Player,
-        PlayerCoord, SPRITE_HEIGHT, TILE_SIZE, TILEMAP_OFFSET_Y, Velocity,
+        PlayerCoord, SPRITE_HEIGHT, Velocity,
     },
 };
 

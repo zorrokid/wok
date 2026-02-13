@@ -9,7 +9,7 @@ use crate::{
     camera::camera_follow,
     keyboard::exit_on_esc,
     level::setup_tilemap,
-    player::{movement::player_movement, spawn_player},
+    player::{movement::player_movement, spawn::spawn_player},
 };
 
 fn main() {
