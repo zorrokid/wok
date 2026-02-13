@@ -117,8 +117,8 @@ fn is_grounded(
     get_tile_type_at: impl Fn(i32, i32) -> Option<TileType>,
     is_solid_tile: impl Fn(TileType) -> bool,
 ) -> bool {
-    // Check for ground slightly below feet (1 pixel below to detect tile surface)
-    let check_y = player_coord.feet_y - 1.0;
+    // Check for ground slightly below feet
+    let check_y = player_coord.ground_check_y();
 
     // Convert both foot positions to tile coordinates
     let (left_tile_x, left_tile_y) = world_to_tile_coords(player_coord.feet_x_left, check_y);
@@ -140,7 +140,7 @@ fn ground_snap_y(
     tile_size: f32,
     sprite_height: f32,
 ) -> Option<f32> {
-    let check_y = player_coord_after.feet_y - 1.0;
+    let check_y = player_coord_after.ground_check_y();
     let (left_tile_x, left_tile_y) = world_to_tile_coords(player_coord_after.feet_x_left, check_y);
     let (right_tile_x, right_tile_y) =
         world_to_tile_coords(player_coord_after.feet_x_right, check_y);

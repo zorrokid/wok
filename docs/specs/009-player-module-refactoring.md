@@ -49,14 +49,23 @@ Extract common patterns into reusable abstractions:
 ### Tasks
 
 #### Phase 1: Extract Coordinate Types
-- [ ] Create `src/player/coord.rs` module
-- [ ] Move `Coord` struct to coord.rs
-- [ ] Move `PlayerCoord` struct to coord.rs
-- [ ] Add `FOOT_EDGE_INSET` constant (currently hardcoded as 3.0)
-- [ ] Add `ground_check_y()` method to PlayerCoord (encapsulate the -1.0 offset)
-- [ ] Update mod.rs to re-export coord types
-- [ ] Update movement.rs imports
-- [ ] Test: Verify compilation and gameplay unchanged
+- [x] Create `src/player/coord.rs` module
+- [x] Move `Coord` struct to coord.rs
+- [x] Move `PlayerCoord` struct to coord.rs
+- [x] Add `FOOT_EDGE_INSET` constant (currently hardcoded as 3.0)
+- [x] Add `ground_check_y()` method to PlayerCoord (encapsulate the -1.0 offset)
+- [x] Update mod.rs to re-export coord types
+- [x] Update movement.rs imports
+- [x] Test: Verify compilation and gameplay unchanged
+
+**Status: Complete** ✓
+- Created `src/player/coord.rs` with Coord and PlayerCoord types
+- Added `FOOT_EDGE_INSET` (3.0) and `GROUND_CHECK_OFFSET` (1.0) constants
+- Implemented `ground_check_y()` method to encapsulate offset calculation
+- Updated `mod.rs` to re-export types via `pub use coord::{Coord, PlayerCoord}`
+- Updated `is_grounded()` and `ground_snap_y()` to use new method
+- Build successful with expected warnings only
+- Gameplay behavior unchanged (pure refactoring)
 
 #### Phase 2: Add Tests for Coordinate Types
 - [ ] Add test for `PlayerCoord::new()` feet position calculations
