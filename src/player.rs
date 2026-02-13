@@ -44,13 +44,28 @@ fn world_to_tile_coords(world_x: f32, world_y: f32) -> (i32, i32) {
     (tile_x, tile_y)
 }
 
+#[derive(PartialEq, Eq)]
+enum TileType {
+    Solid = 1,
+    Empty = 0,
+}
+
+impl From<u32> for TileType {
+    fn from(value: u32) -> Self {
+        match value {
+            1 => TileType::Solid,
+            _ => TileType::Empty,
+        }
+    }
+}
+
 // Helper function: Check if tile is solid
-fn is_solid_tile(tile_type: u32) -> bool {
-    tile_type == 1 // Type 1 is solid platform
+fn is_solid_tile(tile_type: TileType) -> bool {
+    tile_type == TileType::Solid
 }
 
 // Helper function: Get tile type at position from LEVEL_DATA
-fn get_tile_type_at(tile_x: i32, tile_y: i32) -> Option<u32> {
+fn get_tile_type_at(tile_x: i32, tile_y: i32) -> Option<TileType> {
     if tile_x < 0 || tile_y < 0 || tile_x >= LEVEL_WIDTH as i32 || tile_y >= LEVEL_HEIGHT as i32 {
         return None;
     }
@@ -60,8 +75,8 @@ fn get_tile_type_at(tile_x: i32, tile_y: i32) -> Option<u32> {
     if array_y < 0 || array_y >= LEVEL_HEIGHT as i32 {
         return None;
     }
-
-    Some(LEVEL_DATA[array_y as usize][tile_x as usize])
+    let tile_type: TileType = LEVEL_DATA[array_y as usize][tile_x as usize].into();
+    Some(tile_type)
 }
 
 pub fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -133,65 +148,32 @@ pub fn player_movement(
     mut query: Query<(&mut Transform, &mut Velocity), With<Player>>,
 ) {
     if let Ok((mut transform, mut velocity)) = query.single_mut() {
+        let is_jump_pressed = keyboard.just_pressed(KeyCode::KeyZ);
+        let is_left_pressed = keyboard.pressed(KeyCode::ArrowLeft);
+        let is_right_pressed = keyboard.pressed(KeyCode::ArrowRight);
         let delta = time.delta_secs();
-
         let player_coord: PlayerCoord = (*transform).into();
-
-        // Check for ground slightly below feet (1 pixel below to detect tile surface)
-        let check_y = player_coord.feet_y - 1.0;
-
-        // Convert both foot positions to tile coordinates
-        let (left_tile_x, left_tile_y) = world_to_tile_coords(player_coord.feet_x_left, check_y);
-        let (right_tile_x, right_tile_y) = world_to_tile_coords(player_coord.feet_x_right, check_y);
-
-        // Check if there's a solid tile beneath either foot
-        let left_tile_below = get_tile_type_at(left_tile_x, left_tile_y);
-        let right_tile_below = get_tile_type_at(right_tile_x, right_tile_y);
-
-        let is_grounded = left_tile_below.map(is_solid_tile).unwrap_or(false)
-            || right_tile_below.map(is_solid_tile).unwrap_or(false);
+        let is_grounded = is_grounded(
+            &player_coord,
+            world_to_tile_coords,
+            get_tile_type_at,
+            is_solid_tile,
+        );
 
         // Jump input
-        if keyboard.just_pressed(KeyCode::KeyZ) && is_grounded {
+        if is_jump_pressed && is_grounded {
             velocity.0.y = JUMP_VELOCITY;
         }
 
-        // Horizontal movement - determine target velocity based on input
-        let mut target_velocity_x = 0.0;
-        if keyboard.pressed(KeyCode::ArrowLeft) {
-            target_velocity_x -= PLAYER_MAX_SPEED;
-        }
-        if keyboard.pressed(KeyCode::ArrowRight) {
-            target_velocity_x += PLAYER_MAX_SPEED;
-        }
-
-        // Apply acceleration or deceleration (horizontal)
-        if target_velocity_x != 0.0 {
-            // Accelerate toward target
-            let accel_direction = (target_velocity_x - velocity.0.x).signum();
-            velocity.0.x += accel_direction * PLAYER_ACCELERATION * delta;
-
-            // Clamp to target (don't overshoot)
-            if accel_direction > 0.0 {
-                velocity.0.x = velocity.0.x.min(target_velocity_x);
-            } else {
-                velocity.0.x = velocity.0.x.max(target_velocity_x);
-            }
-        } else {
-            // Decelerate to zero
-            if velocity.0.x.abs() > 0.0 {
-                let decel_amount = PLAYER_DECELERATION * delta;
-
-                if velocity.0.x > 0.0 {
-                    velocity.0.x = (velocity.0.x - decel_amount).max(0.0);
-                } else if velocity.0.x < 0.0 {
-                    velocity.0.x = (velocity.0.x + decel_amount).min(0.0);
-                }
-            }
-        }
-
-        // Clamp horizontal velocity to max speed
-        velocity.0.x = velocity.0.x.clamp(-PLAYER_MAX_SPEED, PLAYER_MAX_SPEED);
+        let target_velocity_x = get_target_velocity_x(is_left_pressed, is_right_pressed);
+        velocity.0.x = apply_horizontl_acceleration(
+            velocity.0.x,
+            target_velocity_x,
+            delta,
+            PLAYER_ACCELERATION,
+            PLAYER_DECELERATION,
+            PLAYER_MAX_SPEED,
+        );
 
         // Apply gravity (only when not grounded or when jumping up)
         if !is_grounded || velocity.0.y > 0.0 {
@@ -207,29 +189,120 @@ pub fn player_movement(
         // Get updated player coordinates after movement
         let player_coord_after: PlayerCoord = (*transform).into();
 
-        // Ground collision - re-check at new position and snap if on solid tile
-        let new_check_y = player_coord_after.feet_y - 1.0;
-
-        let (new_left_tile_x, new_left_tile_y) =
-            world_to_tile_coords(player_coord_after.feet_x_left, new_check_y);
-        let (new_right_tile_x, new_right_tile_y) =
-            world_to_tile_coords(player_coord_after.feet_x_right, new_check_y);
-
-        let new_left_tile = get_tile_type_at(new_left_tile_x, new_left_tile_y);
-        let new_right_tile = get_tile_type_at(new_right_tile_x, new_right_tile_y);
-
-        let left_solid = new_left_tile.map(is_solid_tile).unwrap_or(false);
-        let right_solid = new_right_tile.map(is_solid_tile).unwrap_or(false);
-
-        if left_solid || right_solid {
-            let snap_tile_y = if left_solid {
-                new_left_tile_y
-            } else {
-                new_right_tile_y
-            };
-            let tile_top_y = TILEMAP_OFFSET_Y + ((snap_tile_y + 1) as f32 * TILE_SIZE);
-            transform.translation.y = tile_top_y + SPRITE_HEIGHT / 2.0;
+        if let Some(snap_y) = ground_snap_y(
+            &player_coord_after,
+            world_to_tile_coords,
+            get_tile_type_at,
+            is_solid_tile,
+            TILEMAP_OFFSET_Y,
+            TILE_SIZE,
+            SPRITE_HEIGHT,
+        ) {
+            transform.translation.y = snap_y;
             velocity.0.y = 0.0;
         }
     }
+}
+
+// Horizontal movement - determine target velocity based on input
+fn get_target_velocity_x(is_left_pressed: bool, is_right_pressed: bool) -> f32 {
+    match (is_left_pressed, is_right_pressed) {
+        (true, _) => -PLAYER_MAX_SPEED,
+        (_, true) => PLAYER_MAX_SPEED,
+        _ => 0.0,
+    }
+}
+
+fn is_grounded(
+    player_coord: &PlayerCoord,
+    world_to_tile_coords: impl Fn(f32, f32) -> (i32, i32),
+    get_tile_type_at: impl Fn(i32, i32) -> Option<TileType>,
+    is_solid_tile: impl Fn(TileType) -> bool,
+) -> bool {
+    // Check for ground slightly below feet (1 pixel below to detect tile surface)
+    let check_y = player_coord.feet_y - 1.0;
+
+    // Convert both foot positions to tile coordinates
+    let (left_tile_x, left_tile_y) = world_to_tile_coords(player_coord.feet_x_left, check_y);
+    let (right_tile_x, right_tile_y) = world_to_tile_coords(player_coord.feet_x_right, check_y);
+
+    let left_tile_below = get_tile_type_at(left_tile_x, left_tile_y);
+    let right_tile_below = get_tile_type_at(right_tile_x, right_tile_y);
+
+    left_tile_below.map(&is_solid_tile).unwrap_or(false)
+        || right_tile_below.map(&is_solid_tile).unwrap_or(false)
+}
+
+fn ground_snap_y(
+    player_coord_after: &PlayerCoord,
+    world_to_tile_coords: impl Fn(f32, f32) -> (i32, i32),
+    get_tile_type_at: impl Fn(i32, i32) -> Option<TileType>,
+    is_solid_tile: impl Fn(TileType) -> bool,
+    tilemap_offset_y: f32,
+    tile_size: f32,
+    sprite_height: f32,
+) -> Option<f32> {
+    let new_check_y = player_coord_after.feet_y - 1.0;
+    let (new_left_tile_x, new_left_tile_y) =
+        world_to_tile_coords(player_coord_after.feet_x_left, new_check_y);
+    let (new_right_tile_x, new_right_tile_y) =
+        world_to_tile_coords(player_coord_after.feet_x_right, new_check_y);
+
+    let new_left_tile = get_tile_type_at(new_left_tile_x, new_left_tile_y);
+    let new_right_tile = get_tile_type_at(new_right_tile_x, new_right_tile_y);
+
+    let left_solid = new_left_tile.map(&is_solid_tile).unwrap_or(false);
+    let right_solid = new_right_tile.map(&is_solid_tile).unwrap_or(false);
+
+    if left_solid || right_solid {
+        let snap_tile_y = if left_solid {
+            new_left_tile_y
+        } else {
+            new_right_tile_y
+        };
+        let tile_top_y = tilemap_offset_y + ((snap_tile_y + 1) as f32 * tile_size);
+        Some(tile_top_y + sprite_height / 2.0)
+    } else {
+        None
+    }
+}
+
+fn apply_horizontl_acceleration(
+    velocity_x: f32,
+    target_velocity_x: f32,
+    delta: f32,
+    player_acceleration: f32,
+    player_deceleration: f32,
+    player_max_speed: f32,
+) -> f32 {
+    let mut velocity_x = if target_velocity_x != 0.0 {
+        // Accelerate toward target
+        let accel_direction = (target_velocity_x - velocity_x).signum();
+        let new_velocity_x = velocity_x + accel_direction * player_acceleration * delta;
+
+        // Clamp to target (don't overshoot)
+        if accel_direction > 0.0 {
+            new_velocity_x.min(target_velocity_x)
+        } else {
+            new_velocity_x.max(target_velocity_x)
+        }
+    } else {
+        // Decelerate to zero
+        if velocity_x.abs() > 0.0 {
+            let decel_amount = player_deceleration * delta;
+
+            if velocity_x > 0.0 {
+                (velocity_x - decel_amount).max(0.0)
+            } else if velocity_x < 0.0 {
+                (velocity_x + decel_amount).min(0.0)
+            } else {
+                velocity_x
+            }
+        } else {
+            velocity_x
+        }
+    };
+    // Clamp horizontal velocity to max speed
+    velocity_x = velocity_x.clamp(-player_max_speed, player_max_speed);
+    velocity_x
 }
