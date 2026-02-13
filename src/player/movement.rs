@@ -20,6 +20,38 @@ use crate::{
     },
 };
 
+/// Tile information for both feet positions
+struct FeetTiles {
+    left: Option<TileType>,
+    right: Option<TileType>,
+    left_tile_y: i32,
+    right_tile_y: i32,
+}
+
+/// Check tiles beneath both feet and return tile information
+fn check_feet_tiles(
+    player_coord: &PlayerCoord,
+    world_to_tile_coords: impl Fn(f32, f32) -> (i32, i32),
+    get_tile_type_at: impl Fn(i32, i32) -> Option<TileType>,
+) -> FeetTiles {
+    let check_y = player_coord.ground_check_y();
+
+    // Convert both foot positions to tile coordinates
+    let (left_tile_x, left_tile_y) = world_to_tile_coords(player_coord.feet_x_left, check_y);
+    let (right_tile_x, right_tile_y) = world_to_tile_coords(player_coord.feet_x_right, check_y);
+
+    // Get tile types at both positions
+    let left = get_tile_type_at(left_tile_x, left_tile_y);
+    let right = get_tile_type_at(right_tile_x, right_tile_y);
+
+    FeetTiles {
+        left,
+        right,
+        left_tile_y,
+        right_tile_y,
+    }
+}
+
 pub fn player_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
@@ -117,18 +149,10 @@ fn is_grounded(
     get_tile_type_at: impl Fn(i32, i32) -> Option<TileType>,
     is_solid_tile: impl Fn(TileType) -> bool,
 ) -> bool {
-    // Check for ground slightly below feet
-    let check_y = player_coord.ground_check_y();
+    let feet_tiles = check_feet_tiles(player_coord, world_to_tile_coords, get_tile_type_at);
 
-    // Convert both foot positions to tile coordinates
-    let (left_tile_x, left_tile_y) = world_to_tile_coords(player_coord.feet_x_left, check_y);
-    let (right_tile_x, right_tile_y) = world_to_tile_coords(player_coord.feet_x_right, check_y);
-
-    let left_tile_below = get_tile_type_at(left_tile_x, left_tile_y);
-    let right_tile_below = get_tile_type_at(right_tile_x, right_tile_y);
-
-    left_tile_below.map(&is_solid_tile).unwrap_or(false)
-        || right_tile_below.map(&is_solid_tile).unwrap_or(false)
+    feet_tiles.left.map(&is_solid_tile).unwrap_or(false)
+        || feet_tiles.right.map(&is_solid_tile).unwrap_or(false)
 }
 
 fn ground_snap_y(
@@ -140,22 +164,16 @@ fn ground_snap_y(
     tile_size: f32,
     sprite_height: f32,
 ) -> Option<f32> {
-    let check_y = player_coord_after.ground_check_y();
-    let (left_tile_x, left_tile_y) = world_to_tile_coords(player_coord_after.feet_x_left, check_y);
-    let (right_tile_x, right_tile_y) =
-        world_to_tile_coords(player_coord_after.feet_x_right, check_y);
+    let feet_tiles = check_feet_tiles(player_coord_after, world_to_tile_coords, get_tile_type_at);
 
-    let left_tile = get_tile_type_at(left_tile_x, left_tile_y);
-    let right_tile = get_tile_type_at(right_tile_x, right_tile_y);
-
-    let left_solid = left_tile.map(&is_solid_tile).unwrap_or(false);
-    let right_solid = right_tile.map(&is_solid_tile).unwrap_or(false);
+    let left_solid = feet_tiles.left.map(&is_solid_tile).unwrap_or(false);
+    let right_solid = feet_tiles.right.map(&is_solid_tile).unwrap_or(false);
 
     if left_solid || right_solid {
         let snap_tile_y = if left_solid {
-            left_tile_y
+            feet_tiles.left_tile_y
         } else {
-            right_tile_y
+            feet_tiles.right_tile_y
         };
         let tile_top_y = tilemap_offset_y + ((snap_tile_y + 1) as f32 * tile_size);
         Some(tile_top_y + sprite_height / 2.0)
