@@ -64,17 +64,8 @@ Transform::from_xyz(0.0, 0.0, 10.0)
 - Use `Anchor` component to change this behavior
 
 #### 4. Tile Coordinates vs World Coordinates
-```rust
-// Tile coordinates (grid-based, usually integers)
-let tile_x = 5;
-let tile_y = 3;
 
-// Convert to world coordinates
-let world_x = tile_x as f32 * TILE_SIZE;
-let world_y = tile_y as f32 * TILE_SIZE;
-
-// Note: Tile (0, 0) might be at world (0, 0) or offset depending on level design
-```
+See the dedicated [Tilemap Coordinate System](#tilemap-coordinate-system-bevy_ecs_tilemap) section below for how `bevy_ecs_tilemap` handles tile-to-world mapping and how our collision system stays in sync.
 
 ## 3D Coordinate System (for reference)
 
@@ -154,22 +145,114 @@ camera.translation.z = 999.9;
 ## Coordinate Conversion Helpers
 
 ### World to Tile
+
+Our `world_to_tile_coords` assumes tiles are corner-aligned (left/bottom edge at `TILEMAP_OFFSET + tile_index * TILE_SIZE`):
+
 ```rust
 pub fn world_to_tile_coords(world_x: f32, world_y: f32) -> (i32, i32) {
-    let tile_x = (world_x / TILE_SIZE).floor() as i32;
-    let tile_y = (world_y / TILE_SIZE).floor() as i32;
+    let tile_x = ((world_x - TILEMAP_OFFSET_X) / TILE_SIZE).floor() as i32;
+    let tile_y = ((world_y - TILEMAP_OFFSET_Y) / TILE_SIZE).floor() as i32;
     (tile_x, tile_y)
 }
 ```
 
-### Tile to World (center of tile)
+This works correctly **only** when the tilemap uses `TilemapAnchor::BottomLeft`, which aligns tile edges with the collision grid. See [Tilemap Coordinate System](#tilemap-coordinate-system-bevy_ecs_tilemap) for details.
+
+### Tile to World (top of tile for ground snapping)
 ```rust
-pub fn tile_to_world_coords(tile_x: i32, tile_y: i32) -> (f32, f32) {
-    let world_x = tile_x as f32 * TILE_SIZE + TILE_SIZE / 2.0;
-    let world_y = tile_y as f32 * TILE_SIZE + TILE_SIZE / 2.0;
-    (world_x, world_y)
-}
+// Top edge of a tile (used for ground_snap_y)
+let tile_top_y = TILEMAP_OFFSET_Y + ((tile_y + 1) as f32 * TILE_SIZE);
+// Player center snaps to tile top + half sprite height
+let snap_y = tile_top_y + SPRITE_HEIGHT / 2.0;
 ```
+
+## Tilemap Coordinate System (bevy_ecs_tilemap)
+
+### How bevy_ecs_tilemap Positions Tiles
+
+`bevy_ecs_tilemap` positions each tile by computing its **center** in tilemap-local space. For a square tilemap:
+
+```
+Tile (x, y) center = (grid_size.x * x, grid_size.y * y)
+```
+
+The tilemap's `Transform` component positions the tilemap in world space, and the `TilemapAnchor` controls which point of the tilemap sits at the transform position.
+
+### TilemapAnchor and Why It Matters
+
+The anchor determines the relationship between the tilemap's `Transform` position and where tiles actually render:
+
+| Anchor | Transform position corresponds to |
+|---|---|
+| `None` (default) | Center of tile (0,0) |
+| `BottomLeft` | Bottom-left corner of the tilemap |
+| `Center` | Center of the entire tilemap |
+
+**We use `TilemapAnchor::BottomLeft`** so that the tilemap's transform position equals `TILEMAP_OFFSET`, and tile edges align with the collision grid:
+
+```
+Tilemap transform = (TILEMAP_OFFSET_X, TILEMAP_OFFSET_Y)
+
+Tile (x, y) left edge  = TILEMAP_OFFSET_X + x * TILE_SIZE
+Tile (x, y) right edge = TILEMAP_OFFSET_X + (x + 1) * TILE_SIZE
+Tile (x, y) bottom edge = TILEMAP_OFFSET_Y + y * TILE_SIZE
+Tile (x, y) top edge    = TILEMAP_OFFSET_Y + (y + 1) * TILE_SIZE
+```
+
+This matches exactly what `world_to_tile_coords` computes with `floor()`.
+
+### Why Not TilemapAnchor::None (the default)?
+
+With the default `TilemapAnchor::None`, tile (0,0) is **centered** at the transform position. This means tile edges are offset by half a tile from where `world_to_tile_coords` expects them, causing an 8-pixel misalignment between visual tiles and collision detection. The player would fall off platform edges too early on one side.
+
+### Visual Layout
+
+```
+With TilemapAnchor::BottomLeft and transform at (-160, -120):
+
+World X:  -160      -144      -128      -112
+           |         |         |         |
+           | Tile 0  | Tile 1  | Tile 2  |  ...
+           |         |         |         |
+           ^         ^         ^
+         left edge  left edge  left edge
+
+Collision grid boundaries match tile visual edges exactly.
+```
+
+### LEVEL_DATA Array Mapping
+
+The `LEVEL_DATA` 2D array uses array index 0 as the **top** of the level, but `bevy_ecs_tilemap` uses Y=0 as the **bottom**. The conversion is:
+
+```
+array_y = (LEVEL_HEIGHT_IN_TILES - 1) - tile_y
+
+LEVEL_DATA[0][..]  → top of level    (tile_y = 14)
+LEVEL_DATA[14][..] → bottom of level (tile_y = 0)
+```
+
+### Built-in Coordinate Conversion APIs
+
+`bevy_ecs_tilemap` provides built-in methods for coordinate conversion that handle anchoring automatically:
+
+```rust
+// World position → tile position (returns None if out of bounds)
+let tile_pos = TilePos::from_world_pos(
+    &world_pos,    // Vec2
+    &map_size,     // TilemapSize
+    &grid_size,    // TilemapGridSize
+    &tile_size,    // TilemapTileSize
+    &map_type,     // TilemapType
+    &anchor,       // TilemapAnchor
+);
+
+// Tile position → world center
+let world_center: Vec2 = tile_pos.center_in_world(
+    &map_size, &grid_size, &tile_size, &map_type, &anchor,
+);
+```
+
+We currently use our own `world_to_tile_coords` for simplicity (it doesn't require passing all the tilemap parameters), but these built-in APIs are the canonical way to convert coordinates and are guaranteed to match the rendering.
 
 ## Visualization
 
