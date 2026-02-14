@@ -86,9 +86,12 @@ pub fn setup_tilemap(mut commands: Commands, asset_server: Res<AssetServer>) {
         storage: tile_storage,
         texture: TilemapTexture::Single(texture_handle),
         tile_size,
+        // TilemapAnchor::None (default) places tile (0,0) center at the transform position.
+        // Shift by +half_tile so tile left/bottom edges align with TILEMAP_OFFSET used by
+        // collision math in world_to_tile_coords.
         transform: Transform::from_xyz(
-            -(LEVEL_WIDTH_IN_TILES as f32 * 16.0) / 2.0,
-            -(LEVEL_HEIGHT_IN_TILES as f32 * 16.0) / 2.0,
+            -(LEVEL_WIDTH_IN_TILES as f32 * 16.0) / 2.0 + 8.0,
+            -(LEVEL_HEIGHT_IN_TILES as f32 * 16.0) / 2.0 + 8.0,
             0.0,
         ),
         ..default()

@@ -46,7 +46,13 @@ fn check_feet_tiles(
     let left = get_tile_type_at(left_tile_x, left_tile_y);
     let right = get_tile_type_at(right_tile_x, right_tile_y);
 
-    /* In this situation, right foot is visually still on top of platofrm:
+    /* TODO: Fix problem when player sprite falls too soon from the left side of the platform,
+     * while visually still on top of it. It looks like half of the player sprite is still on top
+     * of the platform, but the player sprite starts falling. On the right side of the platform it
+     * works as expected, player starts falling only when the whole player sprite (left and right
+     * foot) is off the platform.
+     *
+     * In this situation, right foot is visually still on top of platofrm:
      *
      * Player center: (23.99, -16.00), Player feet left X=15.99, right X=3
      *
@@ -60,16 +66,18 @@ fn check_feet_tiles(
      * Left side of the right tile 11 is: -160 + 11 * 16 = 16
      * Right side of the right tile 11 is: -160 + 11 * 16 + 16 = 32
      *
-     * But it doesn't make sense that
-     * feet left X=15.99, right X=3
+     * So if right foot is between 16...32 it should fall.
      *
-     * Left feet coordinate should be smaller than right feet coordinate!
+     * Logged location:
+     * Player center: (23.99, -16.00), Player feet left X=15.99, right X=31.99
+     *
+     * So from log and calculations everything seems correct. But visually player is still on top
+     * of the platform.
      *
      * Checking feet tiles at Y=-25.00: Left tile (11, 5) = Some(Empty), Right tile (12, 5) = Some(Solid)
     Player position: (24.13, -16.00), Velocity: (0.00, 0.00), Grounded: false
     * Checking feet tiles at Y=-25.00: Left tile (10, 5) = Some(Empty), Right tile (11, 5) = Some(Empty)
-    Feet check starts falling at Y=-25.00: Left tile (10, 5) = Some(Empty), Right tile (11, 5) = Some(Empty), Player center: (23.99, -16.00), Player feet left X=15.99, right X=3
-    1.99
+    Feet check starts falling at Y=-25.00: Left tile (10, 5) = Some(Empty), Right tile (11, 5) = Some(Empty), Player center: (23.99, -16.00), Player feet left X=15.99, right X=31.99
     */
 
     println!(
@@ -78,7 +86,7 @@ fn check_feet_tiles(
     );
     if left == Some(TileType::Empty) && right == Some(TileType::Empty) {
         println!(
-            "Feet check starts falling at Y={:.2}: Left tile ({}, {}) = {:?}, Right tile ({}, {}) = {:?}, Player center: ({:.2}, {:.2}), Player feet left X={:.2}, right X={:.2}",
+            "Feet check starts falling at Y={:.2}: Left tile ({}, {}) = {:?}, Right tile ({}, {}) = {:?}, Player center: ({:.2}, {:.2}), Player feet left X={:.2}, right X={:.2}, player center: ({:.2}, {:.2})",
             check_y,
             left_tile_x,
             left_tile_y,
@@ -89,7 +97,9 @@ fn check_feet_tiles(
             player_coord.center.x,
             player_coord.center.y,
             player_coord.feet_x_left,
-            player_coord.feet_x_right
+            player_coord.feet_x_right,
+            player_coord.center.x,
+            player_coord.center.y
         );
     }
     if left.is_none() && right.is_none() {
@@ -106,6 +116,8 @@ fn check_feet_tiles(
         // While player is visually still on top of the platform under right foot, the calculated
         // tile coordinates for also for the right foot are out of bounds, causing the system to treat it as
         // falling off the edge prematurely.
+        //
+        //
         println!(
             "Error: Feet check out of bounds at Y={:.2}: Left tile ({}, {}) = {:?}, Right tile ({}, {}) = {:?}, Player center: ({:.2}, {:.2}), Player feet left X={:.2}, right X={:.2}",
             check_y,
@@ -238,7 +250,7 @@ fn get_velocity_y(
 
     // Apply gravity (only when not grounded or when jumping up)
     if !is_grounded || velocity > 0.0 {
-        //velocity -= GRAVITY * delta;
+        velocity -= GRAVITY * delta;
     } else {
         velocity = 0.0; // Stop falling when on ground
     }
@@ -269,7 +281,7 @@ fn is_grounded(
     let feet_tiles = check_feet_tiles(player_coord, world_to_tile_coords, get_tile_type_at);
 
     feet_tiles.left.map(&is_solid_tile).unwrap_or(false)
-        && feet_tiles.right.map(&is_solid_tile).unwrap_or(false)
+        || feet_tiles.right.map(&is_solid_tile).unwrap_or(false)
 }
 
 /// Calculates the Y position to snap player to when landing on solid ground.
