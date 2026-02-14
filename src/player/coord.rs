@@ -46,11 +46,14 @@ impl PlayerCoord {
     /// Feet are positioned at the bottom of the sprite, with collision checks inset from the edges
     /// by `FOOT_EDGE_INSET` to prevent premature edge detection.
     pub fn new(center: Coord) -> Self {
+        let feet_y = center.y - SPRITE_HEIGHT / 2.0;
+        let feet_x_left = center.x - (SPRITE_WIDTH / 2.0/* - FOOT_EDGE_INSET*/);
+        let feet_x_right = center.x + (SPRITE_WIDTH / 2.0/* - FOOT_EDGE_INSET*/);
         Self {
             center: center.clone(),
-            feet_y: center.y - SPRITE_HEIGHT / 2.0,
-            feet_x_left: center.x - (SPRITE_WIDTH / 2.0 - FOOT_EDGE_INSET),
-            feet_x_right: center.x + (SPRITE_WIDTH / 2.0 - FOOT_EDGE_INSET),
+            feet_y,
+            feet_x_left,
+            feet_x_right,
         }
     }
 

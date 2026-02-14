@@ -15,9 +15,15 @@ use bevy_ecs_tilemap::{
 };
 
 // Level data: 0 = empty/air, 1 = solid platform
-pub const LEVEL_WIDTH: u32 = 20;
-pub const LEVEL_HEIGHT: u32 = 15;
-pub const LEVEL_DATA: [[u32; LEVEL_WIDTH as usize]; LEVEL_HEIGHT as usize] = [
+pub const LEVEL_WIDTH_IN_TILES: u32 = 20;
+pub const LEVEL_HEIGHT_IN_TILES: u32 = 15;
+
+/// Level layout: 2D array of tile types (0 = empty, 1 = solid)
+/// currently left side of the level in world coordinates is at
+/// x = -(LEVEL_WIDTH_IN_TILES * TILE_SIZE / 2.0)
+/// e.g. for 20 tiles wide and 16 pixels per tile, left edge is at x = -160.0
+/// and right side is at x = (LEVEL_WIDTH_IN_TILES * TILE_SIZE / 2.0)
+pub const LEVEL_DATA: [[u32; LEVEL_WIDTH_IN_TILES as usize]; LEVEL_HEIGHT_IN_TILES as usize] = [
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -27,7 +33,7 @@ pub const LEVEL_DATA: [[u32; LEVEL_WIDTH as usize]; LEVEL_HEIGHT as usize] = [
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0],
+    [0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -41,8 +47,8 @@ pub fn setup_tilemap(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     // Create tilemap entity
     let map_size = TilemapSize {
-        x: LEVEL_WIDTH,
-        y: LEVEL_HEIGHT,
+        x: LEVEL_WIDTH_IN_TILES,
+        y: LEVEL_HEIGHT_IN_TILES,
     };
     let tile_size = TilemapTileSize { x: 16.0, y: 16.0 };
     let grid_size = TilemapGridSize { x: 16.0, y: 16.0 };
@@ -52,9 +58,9 @@ pub fn setup_tilemap(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     // Spawn tiles from level data
     // Note: Array index 0 is top of level, but Y=0 is bottom in tilemap
-    for y in 0..LEVEL_HEIGHT {
-        for x in 0..LEVEL_WIDTH {
-            let tile_type = LEVEL_DATA[(LEVEL_HEIGHT - 1 - y) as usize][x as usize];
+    for y in 0..LEVEL_HEIGHT_IN_TILES {
+        for x in 0..LEVEL_WIDTH_IN_TILES {
+            let tile_type = LEVEL_DATA[(LEVEL_HEIGHT_IN_TILES - 1 - y) as usize][x as usize];
 
             if tile_type > 0 {
                 let tile_pos = TilePos { x, y };
@@ -81,8 +87,8 @@ pub fn setup_tilemap(mut commands: Commands, asset_server: Res<AssetServer>) {
         texture: TilemapTexture::Single(texture_handle),
         tile_size,
         transform: Transform::from_xyz(
-            -(LEVEL_WIDTH as f32 * 16.0) / 2.0,
-            -(LEVEL_HEIGHT as f32 * 16.0) / 2.0,
+            -(LEVEL_WIDTH_IN_TILES as f32 * 16.0) / 2.0,
+            -(LEVEL_HEIGHT_IN_TILES as f32 * 16.0) / 2.0,
             0.0,
         ),
         ..default()

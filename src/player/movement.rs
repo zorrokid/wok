@@ -1,3 +1,5 @@
+use std::process::exit;
+
 use bevy::{
     ecs::{
         query::With,
@@ -44,6 +46,83 @@ fn check_feet_tiles(
     let left = get_tile_type_at(left_tile_x, left_tile_y);
     let right = get_tile_type_at(right_tile_x, right_tile_y);
 
+    /* In this situation, right foot is visually still on top of platofrm:
+     *
+     * Player center: (23.99, -16.00), Player feet left X=15.99, right X=3
+     *
+     * Left side of tile map: -160
+     *
+     * Left empty tile (10, 5) = Some(Empty)
+     * Left side of left tile 10 is: -160 + 10 * 16 = 0
+     * Right side of left tile 10 is: -160 + 10 * 16 + 16 = 16
+     *
+     * Right empty tile (11, 5) = Some(Empty)
+     * Left side of the right tile 11 is: -160 + 11 * 16 = 16
+     * Right side of the right tile 11 is: -160 + 11 * 16 + 16 = 32
+     *
+     * But it doesn't make sense that
+     * feet left X=15.99, right X=3
+     *
+     * Left feet coordinate should be smaller than right feet coordinate!
+     *
+     * Checking feet tiles at Y=-25.00: Left tile (11, 5) = Some(Empty), Right tile (12, 5) = Some(Solid)
+    Player position: (24.13, -16.00), Velocity: (0.00, 0.00), Grounded: false
+    * Checking feet tiles at Y=-25.00: Left tile (10, 5) = Some(Empty), Right tile (11, 5) = Some(Empty)
+    Feet check starts falling at Y=-25.00: Left tile (10, 5) = Some(Empty), Right tile (11, 5) = Some(Empty), Player center: (23.99, -16.00), Player feet left X=15.99, right X=3
+    1.99
+    */
+
+    println!(
+        "Checking feet tiles at Y={:.2}: Left tile ({}, {}) = {:?}, Right tile ({}, {}) = {:?}",
+        check_y, left_tile_x, left_tile_y, left, right_tile_x, right_tile_y, right,
+    );
+    if left == Some(TileType::Empty) && right == Some(TileType::Empty) {
+        println!(
+            "Feet check starts falling at Y={:.2}: Left tile ({}, {}) = {:?}, Right tile ({}, {}) = {:?}, Player center: ({:.2}, {:.2}), Player feet left X={:.2}, right X={:.2}",
+            check_y,
+            left_tile_x,
+            left_tile_y,
+            left,
+            right_tile_x,
+            right_tile_y,
+            right,
+            player_coord.center.x,
+            player_coord.center.y,
+            player_coord.feet_x_left,
+            player_coord.feet_x_right
+        );
+    }
+    if left.is_none() && right.is_none() {
+        //Error: Feet check out of bounds at
+        // Y=-25.00:
+        // Left tile (-1, 5) = None,
+        // Right tile (0, 5) = Some(Empty),
+        // Player center: (-155.63, -16.00),
+        // Player feet left X=-160.63, right X=-150.63
+        //
+        // Left tile x-coordinates should be -160 to -144, right tile x-coordinates should be -144
+        // to -128
+        //
+        // While player is visually still on top of the platform under right foot, the calculated
+        // tile coordinates for also for the right foot are out of bounds, causing the system to treat it as
+        // falling off the edge prematurely.
+        println!(
+            "Error: Feet check out of bounds at Y={:.2}: Left tile ({}, {}) = {:?}, Right tile ({}, {}) = {:?}, Player center: ({:.2}, {:.2}), Player feet left X={:.2}, right X={:.2}",
+            check_y,
+            left_tile_x,
+            left_tile_y,
+            left,
+            right_tile_x,
+            right_tile_y,
+            right,
+            player_coord.center.x,
+            player_coord.center.y,
+            player_coord.feet_x_left,
+            player_coord.feet_x_right
+        );
+        exit(1);
+    }
+
     FeetTiles {
         left,
         right,
@@ -76,12 +155,27 @@ pub fn player_movement(
         let is_right_pressed = keyboard.pressed(KeyCode::ArrowRight);
         let delta = time.delta_secs();
         let player_coord: PlayerCoord = (*transform).into();
-
         let is_grounded = is_grounded(
             &player_coord,
             world_to_tile_coords,
             get_tile_type_at,
             is_solid_tile,
+        );
+
+        // Here starts falling in the left side (too soon)
+        // Player position: (27.18, -16.00), Velocity: (-45.30, 0.00), Grounded: true
+        // Player position: (26.81, -16.00), Velocity: (-30.35, 0.00), Grounded: false
+
+        // Here starts falling in the right side (as supposed to be)
+        //Player position: (100.58, -16.00), Velocity: (81.32, 0.00), Grounded: true
+        //Player position: (101.63, -16.00), Velocity: (60.52, 0.00), Grounded: false
+        println!(
+            "Player position: ({:.2}, {:.2}), Velocity: ({:.2}, {:.2}), Grounded: {}",
+            transform.translation.x,
+            transform.translation.y,
+            velocity.0.x,
+            velocity.0.y,
+            is_grounded
         );
 
         let target_velocity_x = get_target_velocity_x(is_left_pressed, is_right_pressed);
@@ -144,7 +238,7 @@ fn get_velocity_y(
 
     // Apply gravity (only when not grounded or when jumping up)
     if !is_grounded || velocity > 0.0 {
-        velocity -= GRAVITY * delta;
+        //velocity -= GRAVITY * delta;
     } else {
         velocity = 0.0; // Stop falling when on ground
     }
@@ -175,7 +269,7 @@ fn is_grounded(
     let feet_tiles = check_feet_tiles(player_coord, world_to_tile_coords, get_tile_type_at);
 
     feet_tiles.left.map(&is_solid_tile).unwrap_or(false)
-        || feet_tiles.right.map(&is_solid_tile).unwrap_or(false)
+        && feet_tiles.right.map(&is_solid_tile).unwrap_or(false)
 }
 
 /// Calculates the Y position to snap player to when landing on solid ground.

@@ -1,11 +1,11 @@
-use crate::level::{LEVEL_DATA, LEVEL_HEIGHT, LEVEL_WIDTH};
+use crate::level::{LEVEL_DATA, LEVEL_HEIGHT_IN_TILES, LEVEL_WIDTH_IN_TILES};
 
 pub const TILE_SIZE: f32 = 16.0;
 // Tilemap offset (same as in level.rs)
-pub const TILEMAP_OFFSET_X: f32 = -(LEVEL_WIDTH as f32 * TILE_SIZE) / 2.0;
-pub const TILEMAP_OFFSET_Y: f32 = -(LEVEL_HEIGHT as f32 * TILE_SIZE) / 2.0;
+pub const TILEMAP_OFFSET_X: f32 = -(LEVEL_WIDTH_IN_TILES as f32 * TILE_SIZE) / 2.0;
+pub const TILEMAP_OFFSET_Y: f32 = -(LEVEL_HEIGHT_IN_TILES as f32 * TILE_SIZE) / 2.0;
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum TileType {
     Solid = 1,
     Empty = 0,
@@ -27,13 +27,17 @@ pub fn is_solid_tile(tile_type: TileType) -> bool {
 
 // Helper function: Get tile type at position from LEVEL_DATA
 pub fn get_tile_type_at(tile_x: i32, tile_y: i32) -> Option<TileType> {
-    if tile_x < 0 || tile_y < 0 || tile_x >= LEVEL_WIDTH as i32 || tile_y >= LEVEL_HEIGHT as i32 {
+    if tile_x < 0
+        || tile_y < 0
+        || tile_x >= LEVEL_WIDTH_IN_TILES as i32
+        || tile_y >= LEVEL_HEIGHT_IN_TILES as i32
+    {
         return None;
     }
 
     // Convert tilemap Y to array index (Y=0 is bottom in tilemap, but top in array)
-    let array_y = (LEVEL_HEIGHT - 1) as i32 - tile_y;
-    if array_y < 0 || array_y >= LEVEL_HEIGHT as i32 {
+    let array_y = (LEVEL_HEIGHT_IN_TILES - 1) as i32 - tile_y;
+    if array_y < 0 || array_y >= LEVEL_HEIGHT_IN_TILES as i32 {
         return None;
     }
     let tile_type: TileType = LEVEL_DATA[array_y as usize][tile_x as usize].into();
