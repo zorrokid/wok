@@ -252,7 +252,7 @@ let world_center: Vec2 = tile_pos.center_in_world(
 );
 ```
 
-We currently use our own `world_to_tile_coords` for simplicity (it doesn't require passing all the tilemap parameters), but these built-in APIs are the canonical way to convert coordinates and are guaranteed to match the rendering.
+We currently use our own `world_to_tile_coords` for simplicity (it doesn't require passing all the tilemap parameters), but these built-in APIs are the canonical way to convert coordinates and are guaranteed to match the rendering. Consider migrating to the built-in APIs if the project needs to support non-square tilemaps (hexagonal, isometric) or dynamic tilemap configurations where tile size, grid size, or anchor may vary at runtime.
 
 ## Visualization
 
