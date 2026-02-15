@@ -8,11 +8,9 @@ use bevy::{
     transform::components::Transform,
     utils::default,
 };
-use bevy_ecs_tilemap::{
-    TilemapBundle,
-    anchor::TilemapAnchor,
-    map::{TilemapGridSize, TilemapId, TilemapSize, TilemapTexture, TilemapTileSize},
-    tiles::{TileBundle, TilePos, TileStorage, TileTextureIndex},
+use bevy_ecs_tiled::prelude::{
+    TileBundle, TilePos, TileStorage, TileTextureIndex, TilemapAnchor, TilemapBundle,
+    TilemapGridSize, TilemapId, TilemapSize, TilemapTexture, TilemapTileSize,
 };
 
 // Level data: 0 = empty/air, 1 = solid platform

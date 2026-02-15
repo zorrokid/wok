@@ -3,7 +3,7 @@ mod keyboard;
 mod level;
 mod player;
 use bevy::prelude::*;
-use bevy_ecs_tilemap::prelude::*;
+use bevy_ecs_tiled::prelude::TilemapPlugin;
 
 use crate::{
     camera::camera_follow,
