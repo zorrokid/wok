@@ -1,7 +1,7 @@
 # 011: Scrolling Tilemap with Tiled Editor & Physics Integration
 
 ## Overview
-Migrate from hardcoded level data to the Tiled map editor using TMJ format, integrate Avian2D physics for collision detection, and implement camera bounds for horizontal scrolling. This enables visual level design in Tiled, physics-based player movement, and supports large scrolling levels. This is a comprehensive refactor that modernizes the level system and replaces custom collision with industry-standard physics.
+Migrate from hardcoded level data to the Tiled map editor using TMX format, integrate Avian2D physics for collision detection, and implement camera bounds for horizontal scrolling. This enables visual level design in Tiled, physics-based player movement, and supports large scrolling levels. This is a comprehensive refactor that modernizes the level system and replaces custom collision with industry-standard physics.
 
 ## Current State
 - Level data hardcoded as 20x15 Rust const array (`LEVEL_DATA`)
@@ -15,7 +15,7 @@ Migrate from hardcoded level data to the Tiled map editor using TMJ format, inte
 
 ### Tiled Editor Integration
 - Use Tiled map editor for level design instead of hardcoded arrays
-- TMJ (JSON) format for maps
+- TMX format for maps
 - Load maps using `bevy_ecs_tiled` plugin
 - Support for 16x16 orthogonal tile maps
 - Use existing `tileset.png` as the tileset
@@ -38,7 +38,7 @@ Migrate from hardcoded level data to the Tiled map editor using TMJ format, inte
 
 ### Tiled Integration
 - [ ] Tiled editor installed on system
-- [ ] TMJ map file created in `assets/` matching current level layout
+- [ ] TMX map file created in `assets/` matching current level layout
 - [ ] Map loads correctly with `bevy_ecs_tiled`
 - [ ] Tiles render with correct tileset texture
 - [ ] Level data no longer hardcoded in Rust
@@ -68,7 +68,7 @@ Migrate from hardcoded level data to the Tiled map editor using TMJ format, inte
 ### Approach Overview
 This is a comprehensive refactor in 3 major parts:
 
-1. **Tiled Integration**: Replace `LEVEL_DATA` const array and manual `TilemapBundle` setup with `bevy_ecs_tiled` plugin loading TMJ files
+1. **Tiled Integration**: Replace `LEVEL_DATA` const array and manual `TilemapBundle` setup with `bevy_ecs_tiled` plugin loading TMX files
 2. **Physics Migration**: Replace custom collision detection (`world_to_tile_coords`, `check_feet_tiles`, `is_grounded`, `ground_snap_y`) with Avian2D physics (`RigidBody`, `Collider`, `ShapeCaster`)
 3. **Camera Bounds**: Add horizontal clamping to `camera_follow()` based on level dimensions
 
@@ -96,21 +96,21 @@ Note: `bevy_ecs_tilemap` will be pulled in transitively, so remove direct depend
 - [x] Run `cargo vendor` to update vendored dependencies
 - [x] Install Tiled editor on system if not already done
 
-#### Phase 2: Create Initial TMJ Map
-- [x] Create `assets/map.tmj` in Tiled editor
+#### Phase 2: Create Initial TMX Map
+- [x] Create `assets/map.tmx` in Tiled editor
   - Orthogonal orientation, 16x16 tile size
   - Use `tileset.png` as external tileset
   - Create 20x15 tile map matching current `LEVEL_DATA` layout
   - Tile layer for solid ground (3 rows at bottom)
   - Floating platforms matching current positions
-- [x] Verify TMJ file structure is correct (valid JSON, relative tileset path)
+- [x] Verify TMX file structure is correct (valid XML, relative tileset path)
 
 #### Phase 3: Replace Level Loading System
 - [ ] Update `level/mod.rs`:
   - Remove `LEVEL_DATA` const array
   - Remove manual tile spawning loop
   - Replace `TilemapBundle` setup with `TiledMap` component
-  - Spawn `TiledMap` entity with asset handle to `"map.tmj"`
+  - Spawn `TiledMap` entity with asset handle to `"map.tmx"`
   - Add `TilemapAnchor::BottomLeft` component (matching spec 010)
   - Add observer for `TiledEvent<ColliderCreated>` to insert `RigidBody::Static` on tile colliders
   - Keep camera spawn or move to separate system
@@ -209,7 +209,7 @@ Note: `bevy_ecs_tilemap` will be pulled in transitively, so remove direct depend
   - Starting area (first 20 tiles) with safe platforms
   - Middle section (tiles 20-80) with varied platform arrangements, gaps
   - Ending area (tiles 80-100) with challenge or goal marker
-- [ ] Save TMJ file
+- [ ] Save TMX file
 - [ ] Verify wider map loads correctly
 - [ ] Test: Walk from start to end of level
 
@@ -296,7 +296,7 @@ For now, use hardcoded viewport dimensions (800x600). Future enhancement: query 
 - **Orientation**: Orthogonal
 - **Tile size**: 16x16 pixels
 - **Tileset**: External reference to `tileset.png`
-- **Format**: TMJ (JSON)
+- **Format**: TMX (XML)
 - **Layers**: Single tile layer for solid platforms
 - **Future**: Can add object layers for spawn points, enemies, collectibles using Tiled custom properties
 
@@ -331,7 +331,7 @@ Using Avian2D over Rapier because:
 - Avian2D physics components (RigidBody, Collider, ShapeCaster, LinearVelocity, Gravity)
 - Ground detection via `ShapeHits` and `Grounded` marker component
 - Camera bounds clamping in `camera_follow()`
-- TMJ map file in `assets/`
+- TMX map file in `assets/`
 
 #### Migration Risk & Mitigation
 **Risk**: Physics feel may differ significantly from custom implementation
@@ -357,11 +357,10 @@ Using Avian2D over Rapier because:
 4. **Future features**: Tiled custom properties enable data-driven entity spawning (enemies, collectibles, spawn points)
 5. **Maintainability**: Less custom code to maintain, leverage community-supported libraries
 
-#### Why Tiled/TMJ vs Other Formats?
-- **TMJ (JSON)**: Human-readable, easy to inspect/debug, git-friendly
-- **TMX (XML)**: Older format, more verbose, but equally supported
+#### Why Tiled/TMX vs Other Formats?
+- **TMX (XML)**: Human-readable, easy to inspect/debug, git-friendly
 - **LDTK**: Another excellent editor, but Tiled has broader adoption and better Bevy integration via `bevy_ecs_tiled`
-- **Choice**: TMJ for readability while developing
+- **Choice**: TMX for readability while developing
 
 #### Testing Strategy
 1. **Incremental**: Test each phase before moving to next
@@ -421,7 +420,7 @@ Migrate to Avian2D with current `LEVEL_DATA`, then add Tiled.
 - `src/player/coord.rs` — Likely removed entirely
 - `src/player/mod.rs` — Component changes
 - `src/camera.rs` — Camera bounds added
-- `assets/map.tmj` — New TMJ map file
+- `assets/map.tmx` — New TMX map file
 
 ## Future Enhancements (Not in This Spec)
 - Vertical camera bounds with dead zone or room-based strategy

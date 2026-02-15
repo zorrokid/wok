@@ -9,8 +9,8 @@ use bevy::{
     utils::default,
 };
 use bevy_ecs_tiled::prelude::{
-    TileBundle, TilePos, TileStorage, TileTextureIndex, TilemapAnchor, TilemapBundle,
-    TilemapGridSize, TilemapId, TilemapSize, TilemapTexture, TilemapTileSize,
+    TileBundle, TilePos, TileStorage, TileTextureIndex, TiledMap, TiledMapAsset, TilemapAnchor,
+    TilemapBundle, TilemapGridSize, TilemapId, TilemapSize, TilemapTexture, TilemapTileSize,
 };
 
 // Level data: 0 = empty/air, 1 = solid platform
@@ -93,4 +93,12 @@ pub fn setup_tilemap(mut commands: Commands, asset_server: Res<AssetServer>) {
         ),
         ..default()
     });
+}
+
+pub fn setup_tilemap_new(mut commands: Commands, asset_server: Res<AssetServer>) {
+    // Spawn camera
+    commands.spawn(Camera2d);
+
+    let map_handle: Handle<TiledMapAsset> = asset_server.load("map.tmx");
+    commands.spawn((TiledMap(map_handle), TilemapAnchor::Center));
 }
