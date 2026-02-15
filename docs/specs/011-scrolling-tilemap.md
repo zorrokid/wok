@@ -90,20 +90,20 @@ Note: `bevy_ecs_tilemap` will be pulled in transitively, so remove direct depend
 ### Tasks
 
 #### Phase 1: Setup & Dependencies
-- [ ] Add `bevy_ecs_tiled` with `avian` feature to `Cargo.toml`
-- [ ] Remove direct `bevy_ecs_tilemap` dependency (pulled in by `bevy_ecs_tiled`)
-- [ ] Verify build compiles with new dependencies
-- [ ] Run `cargo vendor` to update vendored dependencies
-- [ ] Install Tiled editor on system if not already done
+- [x] Add `bevy_ecs_tiled` with `avian` feature to `Cargo.toml`
+- [x] Remove direct `bevy_ecs_tilemap` dependency (pulled in by `bevy_ecs_tiled`)
+- [x] Verify build compiles with new dependencies
+- [x] Run `cargo vendor` to update vendored dependencies
+- [x] Install Tiled editor on system if not already done
 
 #### Phase 2: Create Initial TMJ Map
-- [ ] Create `assets/map.tmj` in Tiled editor
+- [x] Create `assets/map.tmj` in Tiled editor
   - Orthogonal orientation, 16x16 tile size
   - Use `tileset.png` as external tileset
   - Create 20x15 tile map matching current `LEVEL_DATA` layout
   - Tile layer for solid ground (3 rows at bottom)
   - Floating platforms matching current positions
-- [ ] Verify TMJ file structure is correct (valid JSON, relative tileset path)
+- [x] Verify TMJ file structure is correct (valid JSON, relative tileset path)
 
 #### Phase 3: Replace Level Loading System
 - [ ] Update `level/mod.rs`:
