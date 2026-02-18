@@ -67,3 +67,13 @@ grep -r "LinearVelocity" vendor/avian2d/
 ## Spec-Driven Development
 
 Features are defined in numbered spec files (`docs/specs/NNN-name.md`). Each spec contains: Overview, Requirements, Acceptance Criteria, Implementation Plan, and a task checklist. A spec is not complete until all tasks are checked off. Specs are implemented incrementally (not as one large diff), and updated to reflect what was actually built if the approach changes.
+
+### Workflow
+
+1. **Write the spec** — draft the spec file and present it to the user for review.
+2. **Wait for user approval** — do not begin any implementation until the user explicitly confirms the spec.
+3. **Create a branch** — when implementation starts, create a git branch named `NNN-short-name` matching the spec number and slug (e.g. `012-level-bounds`).
+4. **Implement** — work through the spec's task checklist on that branch.
+5. **User verifies** — the user tests the feature in-game and confirms it works.
+6. **Mark spec complete** — set `Status: Complete` and check off all remaining tasks in the spec file.
+7. **Open a pull request** — create a PR from the feature branch into `main`.

@@ -1,4 +1,4 @@
-use avian2d::prelude::{LinearVelocity, ShapeHits};
+use avian2d::prelude::{LinearVelocity, Position, ShapeHits};
 use bevy::{
     ecs::{
         entity::Entity,
@@ -10,8 +10,12 @@ use bevy::{
     time::Time,
 };
 
-use crate::player::{
-    Grounded, JUMP_VELOCITY, PLAYER_ACCELERATION, PLAYER_DECELERATION, PLAYER_MAX_SPEED, Player,
+use crate::{
+    level::tile::{TILE_SIZE, TILEMAP_OFFSET_X, TILEMAP_OFFSET_Y},
+    player::{
+        Grounded, JUMP_VELOCITY, PLAYER_ACCELERATION, PLAYER_DECELERATION, PLAYER_MAX_SPEED,
+        Player, SPRITE_HEIGHT,
+    },
 };
 
 /// Updates the `Grounded` marker based on ShapeCaster results.
@@ -109,6 +113,27 @@ pub fn apply_horizontal_acceleration(
         }
     };
     velocity_x.clamp(-player_max_speed, player_max_speed)
+}
+
+/// Teleports the player back to spawn if they fall below the level floor.
+///
+/// The threshold is 64px below `TILEMAP_OFFSET_Y` so minor physics clipping
+/// doesn't trigger it. Uses `Position` (not `Transform`) because Avian2D owns
+/// the transform for dynamic bodies; writing to `Position` directly is safe at
+/// any point in the Update schedule.
+pub fn kill_zone(mut query: Query<(&mut Position, &mut LinearVelocity), With<Player>>) {
+    const KILL_ZONE_Y: f32 = TILEMAP_OFFSET_Y - 64.0;
+    const SPAWN_X: f32 = TILEMAP_OFFSET_X + 3.0 * TILE_SIZE;
+    const SPAWN_Y: f32 = TILEMAP_OFFSET_Y + 3.0 * TILE_SIZE + SPRITE_HEIGHT / 2.0;
+
+    let Ok((mut position, mut velocity)) = query.single_mut() else {
+        return;
+    };
+
+    if position.y < KILL_ZONE_Y {
+        *position = Position::from_xy(SPAWN_X, SPAWN_Y);
+        *velocity = LinearVelocity::ZERO;
+    }
 }
 
 #[cfg(test)]

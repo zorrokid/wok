@@ -37,29 +37,29 @@ Migrate from hardcoded level data to the Tiled map editor using TMX format, inte
 ## Acceptance Criteria
 
 ### Tiled Integration
-- [ ] Tiled editor installed on system
-- [ ] TMX map file created in `assets/` matching current level layout
-- [ ] Map loads correctly with `bevy_ecs_tiled`
-- [ ] Tiles render with correct tileset texture
-- [ ] Level data no longer hardcoded in Rust
+- [x] Tiled editor installed on system
+- [x] TMX map file created in `assets/` matching current level layout
+- [x] Map loads correctly with `bevy_ecs_tiled`
+- [x] Tiles render with correct tileset texture
+- [x] Level data no longer hardcoded in Rust
 
 ### Physics System
-- [ ] Player has Avian2D physics body (RigidBody, Collider, ShapeCaster)
-- [ ] Tile colliders auto-generated as static physics bodies
-- [ ] Player walks and collides with platforms correctly
-- [ ] Jump physics feels responsive and correct
-- [ ] Ground detection works reliably (no floating or sinking)
-- [ ] Custom collision code removed (check_feet_tiles, is_grounded, ground_snap_y)
+- [x] Player has Avian2D physics body (RigidBody, Collider, ShapeCaster)
+- [x] Tile colliders auto-generated as static physics bodies
+- [x] Player walks and collides with platforms correctly
+- [x] Jump physics feels responsive and correct
+- [x] Ground detection works reliably (no floating or sinking)
+- [x] Custom collision code removed (check_feet_tiles, is_grounded, ground_snap_y)
 
 ### Scrolling & Camera
-- [ ] Level width at least 100 tiles (1600 pixels)
-- [ ] Camera horizontal position clamped to level bounds
-- [ ] Camera stops at left edge when player is near start
-- [ ] Camera stops at right edge when player is near end
-- [ ] Camera smoothly follows player in the middle of the level
-- [ ] No visual glitches or empty space shown beyond tilemap edges
-- [ ] Player remains visible on screen at all camera positions
-- [ ] Existing smooth camera follow preserved (lerp behavior)
+- [x] Level width at least 100 tiles (1600 pixels)
+- [x] Camera horizontal position clamped to level bounds
+- [x] Camera stops at left edge when player is near start
+- [x] Camera stops at right edge when player is near end
+- [x] Camera smoothly follows player in the middle of the level
+- [x] No visual glitches or empty space shown beyond tilemap edges
+- [x] Player remains visible on screen at all camera positions
+- [x] Existing smooth camera follow preserved (lerp behavior)
 
 ---
 
@@ -152,10 +152,10 @@ Note: `bevy_ecs_tilemap` will be pulled in transitively, so remove direct depend
 - [x] Added `COLLIDER_WIDTH`/`COLLIDER_HEIGHT` constants to `player/mod.rs`
 - [x] Removed `Velocity` component and `GRAVITY` constant from `player/mod.rs`
 - [x] `update_grounded` and `player_movement` run in `Update` (not FixedUpdate) so `just_pressed` fires exactly once per frame
-- [ ] Test: Player walks left/right with physics
-- [ ] Test: Player jumps correctly
-- [ ] Test: Player lands on platforms
-- [ ] Tune physics constants if feel differs from original
+- [x] Test: Player walks left/right with physics
+- [x] Test: Player jumps correctly
+- [x] Test: Player lands on platforms
+- [x] Physics constants tuned (JUMP_VELOCITY=400 to clear highest platform)
 
 #### Phase 6: Remove Custom Collision Code
 - [x] Remove from `player/movement.rs`: `FeetTiles`, `check_feet_tiles()`, custom `is_grounded()`, `ground_snap_y()`, all debug `println!`, large TODO comment block — done as part of Phase 5 rewrite
@@ -172,16 +172,16 @@ Note: `bevy_ecs_tilemap` will be pulled in transitively, so remove direct depend
 - [x] Expanded map to 100x30 tiles in Tiled (1600x480px)
 - [x] Updated `level/tile.rs` with `LEVEL_WIDTH_IN_TILES = 100`, `LEVEL_HEIGHT_IN_TILES = 30`; offsets now computed from constants
 - [x] Verified build compiles
-- [ ] Test: Walk from start to end of level
+- [ ] Test: Walk from start to end of level (player can walk off level edges — to be addressed in a future spec)
 
 #### Phase 8: Camera Bounds Implementation
 - [x] Added `tilemap_query: Query<&TilemapSize, With<TileStorage>>` to `camera_follow()` — bevy_ecs_tiled spawns a child entity per tile layer, each with `TilemapSize` + `TileStorage`; `.iter().next()` picks any layer (they all share the same dimensions)
 - [x] Added `VIEWPORT_WIDTH = 800.0` constant
 - [x] Bounds calculated from `TilemapSize` assuming `TilemapAnchor::Center` (level centered on world origin): `camera_min_x = -half_width + VIEWPORT_WIDTH/2`, `camera_max_x = +half_width - VIEWPORT_WIDTH/2`
 - [x] Camera X clamped after lerp; clamping skipped when level is narrower than viewport (current 20-tile map)
-- [ ] Test: Camera stops at left edge
-- [ ] Test: Camera stops at right edge
-- [ ] Test: Camera follows smoothly in middle
+- [x] Test: Camera stops at left edge
+- [x] Test: Camera stops at right edge
+- [x] Test: Camera follows smoothly in middle
 - [ ] Test: Walk full level from start to end
 
 > **Note:** Camera bounds are implemented but inactive until Phase 7 expands the map beyond 800px (50+ tiles wide). The guard `if camera_max_x > camera_min_x` handles this automatically.
