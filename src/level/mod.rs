@@ -1,14 +1,38 @@
 pub mod tile;
 
-use avian2d::prelude::RigidBody;
+use avian2d::prelude::{Collider, RigidBody};
 use bevy::{
     asset::{AssetServer, Handle},
     camera::Camera2d,
     ecs::{observer::On, system::{Commands, Res}},
+    transform::components::Transform,
 };
 use bevy_ecs_tiled::prelude::{
     ColliderCreated, TiledEvent, TiledMap, TiledMapAsset, TilemapAnchor,
 };
+
+use crate::level::tile::{LEVEL_HEIGHT_IN_TILES, LEVEL_WIDTH_IN_TILES, TILE_SIZE, TILEMAP_OFFSET_X};
+
+/// Spawns invisible static colliders at the left and right edges of the level
+/// so the player cannot walk off the map.
+pub fn spawn_level_bounds(mut commands: Commands) {
+    let level_width_px = LEVEL_WIDTH_IN_TILES as f32 * TILE_SIZE;
+    let level_height_px = LEVEL_HEIGHT_IN_TILES as f32 * TILE_SIZE;
+
+    // Left wall at the left edge of the tilemap
+    commands.spawn((
+        Collider::rectangle(1.0, level_height_px),
+        RigidBody::Static,
+        Transform::from_xyz(TILEMAP_OFFSET_X, 0.0, 0.0),
+    ));
+
+    // Right wall at the right edge of the tilemap
+    commands.spawn((
+        Collider::rectangle(1.0, level_height_px),
+        RigidBody::Static,
+        Transform::from_xyz(TILEMAP_OFFSET_X + level_width_px, 0.0, 0.0),
+    ));
+}
 
 pub fn setup_tilemap(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);

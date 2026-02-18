@@ -9,9 +9,9 @@ use bevy_ecs_tiled::prelude::*;
 use crate::{
     camera::camera_follow,
     keyboard::exit_on_esc,
-    level::setup_tilemap,
+    level::{setup_tilemap, spawn_level_bounds},
     player::{
-        movement::{player_movement, update_grounded},
+        movement::{kill_zone, player_movement, update_grounded},
         spawn::spawn_player,
     },
 };
@@ -40,12 +40,12 @@ fn main() {
         // Global gravity applied to all Dynamic rigid bodies each physics step.
         // NEG_Y * 980.0 matches the gravity constant used in the old custom system.
         .insert_resource(Gravity(Vec2::NEG_Y * 980.0))
-        .add_systems(Startup, (setup_tilemap, spawn_player))
+        .add_systems(Startup, (setup_tilemap, spawn_player, spawn_level_bounds))
         // update_grounded reads ShapeHits from the last physics step and inserts/removes
         // the Grounded marker. It must run before player_movement so the jump check sees
         // the current grounded state. Both run in Update (not FixedUpdate) so that
         // keyboard.just_pressed() reliably fires exactly once per player input.
-        .add_systems(Update, (update_grounded, player_movement).chain())
+        .add_systems(Update, (update_grounded, player_movement, kill_zone).chain())
         .add_systems(Update, (camera_follow, exit_on_esc))
         .run();
 }
