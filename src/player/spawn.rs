@@ -1,24 +1,22 @@
 use avian2d::prelude::*;
 use bevy::{
     asset::AssetServer,
-    ecs::system::{Commands, Res},
+    ecs::{
+        query::With,
+        system::{Commands, Query, Res},
+    },
     math::{Dir2, Vec2},
     sprite::Sprite,
     transform::components::Transform,
 };
 
-use crate::{
-    level::tile::{TILE_SIZE, TILEMAP_OFFSET_X, TILEMAP_OFFSET_Y},
-    player::{COLLIDER_HALF_LENGTH, COLLIDER_RADIUS, Player, SPRITE_HEIGHT},
+use crate::player::{
+    COLLIDER_HALF_LENGTH, COLLIDER_RADIUS, KILL_ZONE_Y, PLAYER_SPAWN_X, PLAYER_SPAWN_Y,
+    Player, SHAPE_CASTER_RADIUS,
 };
 
 pub fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
     let player_texture = asset_server.load("player.png");
-
-    // Calculate spawn position: 3 tiles from left, on top of 3-row ground.
-    // TILEMAP_OFFSET_X/Y are the bottom-left corner of the centered map (-160, -120).
-    let spawn_x = TILEMAP_OFFSET_X + (3.0 * TILE_SIZE);
-    let spawn_y = TILEMAP_OFFSET_Y + (3.0 * TILE_SIZE) + SPRITE_HEIGHT / 2.0;
 
     commands.spawn((
         Player,
@@ -34,7 +32,7 @@ pub fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
         // ShapeCaster for ground detection. Uses a slightly narrower capsule than
         // the main collider to avoid false positives at tile edges.
         ShapeCaster::new(
-            Collider::capsule(COLLIDER_HALF_LENGTH, COLLIDER_RADIUS - 1.0),
+            Collider::capsule(COLLIDER_HALF_LENGTH, SHAPE_CASTER_RADIUS),
             Vec2::ZERO,
             0.0,
             Dir2::NEG_Y,
@@ -42,6 +40,22 @@ pub fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
         .with_max_distance(10.0),
         ShapeHits::default(),
         Sprite::from_image(player_texture),
-        Transform::from_xyz(spawn_x, spawn_y, 10.0),
+        Transform::from_xyz(PLAYER_SPAWN_X, PLAYER_SPAWN_Y, 10.0),
     ));
+}
+
+/// Teleports the player back to spawn if they fall below the level floor.
+///
+/// The threshold is 64px below `TILEMAP_OFFSET_Y` so minor physics clipping
+/// doesn't trigger it. Uses `Position` (not `Transform`) because Avian2D owns
+/// the transform for dynamic bodies.
+pub fn kill_zone(mut query: Query<(&mut Position, &mut LinearVelocity), With<Player>>) {
+    let Ok((mut position, mut velocity)) = query.single_mut() else {
+        return;
+    };
+
+    if position.y < KILL_ZONE_Y {
+        *position = Position::from_xy(PLAYER_SPAWN_X, PLAYER_SPAWN_Y);
+        *velocity = LinearVelocity::ZERO;
+    }
 }

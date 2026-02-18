@@ -1,7 +1,8 @@
 use bevy::{
+    app::{App, Plugin, Startup, Update},
     ecs::{
         query::{With, Without},
-        system::{Query, Res},
+        system::{Commands, Query, Res},
     },
     prelude::Camera2d,
     time::Time,
@@ -9,10 +10,22 @@ use bevy::{
 };
 use bevy_ecs_tiled::prelude::{TileStorage, TilemapSize};
 
-use crate::{level::tile::TILE_SIZE, player::Player};
+use crate::{level::tile::TILE_SIZE, player::Player, WINDOW_WIDTH};
 
 const CAMERA_LERP_SPEED: f32 = 5.0;
-const VIEWPORT_WIDTH: f32 = 800.0;
+
+pub struct CameraPlugin;
+
+impl Plugin for CameraPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Startup, setup_camera)
+            .add_systems(Update, camera_follow);
+    }
+}
+
+fn setup_camera(mut commands: Commands) {
+    commands.spawn(Camera2d);
+}
 
 pub fn camera_follow(
     time: Res<Time>,
@@ -41,8 +54,8 @@ pub fn camera_follow(
     // left edge is at -half_width and the right edge at +half_width.
     if let Some(tilemap_size) = tilemap_query.iter().next() {
         let half_width = tilemap_size.x as f32 * TILE_SIZE / 2.0;
-        let camera_min_x = -half_width + VIEWPORT_WIDTH / 2.0;
-        let camera_max_x = half_width - VIEWPORT_WIDTH / 2.0;
+        let camera_min_x = -half_width + WINDOW_WIDTH / 2.0;
+        let camera_max_x = half_width - WINDOW_WIDTH / 2.0;
 
         // Only clamp when the level is wider than the viewport; otherwise leave the
         // camera free (the current 20-tile map is narrower than the 800px viewport).
