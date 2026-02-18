@@ -2,26 +2,27 @@ mod camera;
 mod keyboard;
 mod level;
 mod player;
+
 use avian2d::prelude::*;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::*;
 
 use crate::{
-    camera::camera_follow,
+    camera::CameraPlugin,
     keyboard::exit_on_esc,
-    level::{setup_tilemap, spawn_level_bounds},
-    player::{
-        movement::{kill_zone, player_movement, update_grounded},
-        spawn::spawn_player,
-    },
+    level::LevelPlugin,
+    player::PlayerPlugin,
 };
+
+pub const WINDOW_WIDTH: f32 = 800.0;
+pub const WINDOW_HEIGHT: f32 = 600.0;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "WoK".into(),
-                resolution: (800, 600).into(),
+                resolution: (WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32).into(),
                 ..default()
             }),
             ..default()
@@ -40,12 +41,7 @@ fn main() {
         // Global gravity applied to all Dynamic rigid bodies each physics step.
         // NEG_Y * 980.0 matches the gravity constant used in the old custom system.
         .insert_resource(Gravity(Vec2::NEG_Y * 980.0))
-        .add_systems(Startup, (setup_tilemap, spawn_player, spawn_level_bounds))
-        // update_grounded reads ShapeHits from the last physics step and inserts/removes
-        // the Grounded marker. It must run before player_movement so the jump check sees
-        // the current grounded state. Both run in Update (not FixedUpdate) so that
-        // keyboard.just_pressed() reliably fires exactly once per player input.
-        .add_systems(Update, (update_grounded, player_movement, kill_zone).chain())
-        .add_systems(Update, (camera_follow, exit_on_esc))
+        .add_plugins((LevelPlugin, PlayerPlugin, CameraPlugin))
+        .add_systems(Update, exit_on_esc)
         .run();
 }

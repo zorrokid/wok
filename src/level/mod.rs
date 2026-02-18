@@ -2,8 +2,8 @@ pub mod tile;
 
 use avian2d::prelude::{Collider, RigidBody};
 use bevy::{
+    app::{App, Plugin, Startup},
     asset::{AssetServer, Handle},
-    camera::Camera2d,
     ecs::{observer::On, system::{Commands, Res}},
     transform::components::Transform,
 };
@@ -12,6 +12,14 @@ use bevy_ecs_tiled::prelude::{
 };
 
 use crate::level::tile::{LEVEL_HEIGHT_IN_TILES, LEVEL_WIDTH_IN_TILES, TILE_SIZE, TILEMAP_OFFSET_X};
+
+pub struct LevelPlugin;
+
+impl Plugin for LevelPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Startup, (setup_tilemap, spawn_level_bounds));
+    }
+}
 
 /// Spawns invisible static colliders at the left and right edges of the level
 /// so the player cannot walk off the map.
@@ -35,8 +43,6 @@ pub fn spawn_level_bounds(mut commands: Commands) {
 }
 
 pub fn setup_tilemap(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.spawn(Camera2d);
-
     // TiledMap triggers bevy_ecs_tiled to parse the .tmx file and spawn child
     // entities for each layer and tile. TilemapAnchor::Center positions the
     // tilemap so that its center aligns with the world origin (0, 0).
