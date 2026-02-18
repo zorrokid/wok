@@ -10,7 +10,10 @@ use crate::{
     camera::camera_follow,
     keyboard::exit_on_esc,
     level::setup_tilemap_new,
-    player::{movement::player_movement, spawn::spawn_player},
+    player::{
+        movement::{player_movement, update_grounded},
+        spawn::spawn_player,
+    },
 };
 
 fn main() {
@@ -38,6 +41,11 @@ fn main() {
         // NEG_Y * 980.0 matches the gravity constant used in the old custom system.
         .insert_resource(Gravity(Vec2::NEG_Y * 980.0))
         .add_systems(Startup, (setup_tilemap_new, spawn_player))
-        .add_systems(Update, (player_movement, camera_follow, exit_on_esc))
+        // update_grounded reads ShapeHits from the last physics step and inserts/removes
+        // the Grounded marker. It must run before player_movement so the jump check sees
+        // the current grounded state. Both run in Update (not FixedUpdate) so that
+        // keyboard.just_pressed() reliably fires exactly once per player input.
+        .add_systems(Update, (update_grounded, player_movement).chain())
+        .add_systems(Update, (camera_follow, exit_on_esc))
         .run();
 }

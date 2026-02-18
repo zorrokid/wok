@@ -122,60 +122,40 @@ Note: `bevy_ecs_tilemap` will be pulled in transitively, so remove direct depend
 > **Note:** Spec said `TilemapAnchor::BottomLeft` but `Center` is used (matching the `bevy_ecs_tiled` demo platformer). `BottomLeft` was only needed for the old custom collision math, which Avian2D replaces — the anchor has no effect on physics collider placement.
 
 #### Phase 4: Migrate Player to Physics
-- [ ] Update `player/spawn.rs`:
+- [x] Update `player/spawn.rs`:
   - Replace `Velocity(Vec2::ZERO)` with Avian2D `LinearVelocity::ZERO`
   - Add `RigidBody::Dynamic`
-  - Add `Collider::rectangle(16.0, 16.0)` (or match sprite size)
+  - Add `Collider::rectangle(14.0, 14.0)` (slightly smaller than sprite to avoid edge snags)
   - Add `LockedAxes::ROTATION_LOCKED` to prevent rotation
   - Add `ShapeCaster` for ground detection:
     ```rust
     ShapeCaster::new(
-        Collider::rectangle(15.0, 15.0),  // Slightly smaller than player
+        Collider::rectangle(12.0, 14.0),  // Same height as collider, narrower to avoid tile edge false positives
         Vec2::ZERO,
         0.0,
         Dir2::NEG_Y
-    ).with_max_distance(1.0)
+    ).with_max_distance(10.0)
     ```
-  - Keep spawn position calculation (may need adjustment after testing)
+  - Spawn position calculation unchanged (TILEMAP_OFFSET constants still valid with Center anchor)
 - [ ] Verify player spawns with physics components
 
 #### Phase 5: Replace Movement System with Physics
-- [ ] Update `player/movement.rs`:
-  - Replace `Velocity` component queries with `LinearVelocity`
-  - Remove custom gravity application (`velocity -= GRAVITY * delta`)
-  - Replace horizontal velocity update with `LinearVelocity.x += direction * acceleration * delta`
-  - Replace jump with `if is_grounded { linear_velocity.y = jump_impulse }`
-  - Remove `apply_horizontal_acceleration()` function (or adapt for Avian2D)
-  - Remove `get_velocity_y()` function (Avian2D handles gravity)
-  - Add ground detection using `ShapeHits`:
-    ```rust
-    fn update_grounded(
-        mut commands: Commands,
-        query: Query<(Entity, &ShapeHits), With<Player>>,
-    ) {
-        for (entity, hits) in &query {
-            if hits.iter().any(|_| true) {
-                commands.entity(entity).insert(Grounded);
-            } else {
-                commands.entity(entity).remove::<Grounded>();
-            }
-        }
-    }
-    ```
-  - Update `player_movement` signature to use `Has<Grounded>` instead of custom `is_grounded()` call
-- [ ] Add `MovementAcceleration`, `JumpImpulse`, `MovementDampingFactor` components (or constants)
-- [ ] Add damping system for horizontal movement:
-  ```rust
-  fn apply_damping(mut query: Query<&mut LinearVelocity, With<Player>>) {
-      for mut vel in &mut query {
-          vel.x *= DAMPING_FACTOR; // e.g., 0.9
-      }
-  }
-  ```
+- [x] Update `player/movement.rs`:
+  - Replaced `Velocity` component queries with `LinearVelocity`
+  - Removed custom gravity application (Avian2D handles it automatically)
+  - Kept `apply_horizontal_acceleration()` as a pure function (adapted for Avian2D)
+  - Removed `get_velocity_y()` (Avian2D handles gravity)
+  - Added `update_grounded` system using `ShapeHits` and `Grounded` marker component
+  - `player_movement` uses `Has<Grounded>` from query
+  - Added 8 unit tests for `apply_horizontal_acceleration` and `get_target_velocity_x`
+- [x] Added `Grounded` marker component to `player/mod.rs` (SparseSet storage)
+- [x] Added `COLLIDER_WIDTH`/`COLLIDER_HEIGHT` constants to `player/mod.rs`
+- [x] Removed `Velocity` component and `GRAVITY` constant from `player/mod.rs`
+- [x] `update_grounded` and `player_movement` run in `Update` (not FixedUpdate) so `just_pressed` fires exactly once per frame
 - [ ] Test: Player walks left/right with physics
 - [ ] Test: Player jumps correctly
 - [ ] Test: Player lands on platforms
-- [ ] Tune physics constants (acceleration, jump impulse, gravity, damping) to match original feel
+- [ ] Tune physics constants if feel differs from original
 
 #### Phase 6: Remove Custom Collision Code
 - [ ] Remove from `player/movement.rs`:
