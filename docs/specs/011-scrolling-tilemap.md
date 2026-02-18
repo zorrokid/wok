@@ -106,21 +106,20 @@ Note: `bevy_ecs_tilemap` will be pulled in transitively, so remove direct depend
 - [x] Verify TMX file structure is correct (valid XML, relative tileset path)
 
 #### Phase 3: Replace Level Loading System
-- [ ] Update `level/mod.rs`:
-  - Remove `LEVEL_DATA` const array
-  - Remove manual tile spawning loop
-  - Replace `TilemapBundle` setup with `TiledMap` component
-  - Spawn `TiledMap` entity with asset handle to `"map.tmx"`
-  - Add `TilemapAnchor::BottomLeft` component (matching spec 010)
-  - Add observer for `TiledEvent<ColliderCreated>` to insert `RigidBody::Static` on tile colliders
-  - Keep camera spawn or move to separate system
-- [ ] Update `main.rs`:
-  - Add `TiledPlugin::default()`
-  - Add `TiledPhysicsPlugin::<TiledPhysicsAvianBackend>::default()`
-  - Add `PhysicsPlugins::default()` (or `.with_length_unit(100.0)` for tuning)
-  - Add `Gravity` resource (e.g., `Gravity(Vec2::NEG_Y * 980.0)`)
-- [ ] Verify map loads and renders correctly
-- [ ] Verify tileset texture displays
+- [x] Update `level/mod.rs`:
+  - `LEVEL_DATA` and `setup_tilemap` kept (removed in Phase 6)
+  - `TiledMap` + `TilemapAnchor::Center` already in `setup_tilemap_new`
+  - Added observer on map entity: inserts `RigidBody::Static` on each `ColliderCreated` entity
+- [x] Update `main.rs`:
+  - `TiledPlugin::default()` was already present
+  - Added `TiledPhysicsPlugin::<TiledPhysicsAvianBackend>::default()`
+  - Added `PhysicsPlugins::default().with_length_unit(100.0)`
+  - Added `Gravity(Vec2::NEG_Y * 980.0)` resource
+  - Added `avian2d = "0.5.0"` as direct dependency in `Cargo.toml`
+- [x] Verify map loads and renders correctly
+- [x] Verify tileset texture displays
+
+> **Note:** Spec said `TilemapAnchor::BottomLeft` but `Center` is used (matching the `bevy_ecs_tiled` demo platformer). `BottomLeft` was only needed for the old custom collision math, which Avian2D replaces — the anchor has no effect on physics collider placement.
 
 #### Phase 4: Migrate Player to Physics
 - [ ] Update `player/spawn.rs`:
