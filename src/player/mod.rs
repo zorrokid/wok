@@ -9,7 +9,6 @@ pub const PLAYER_ACCELERATION: f32 = 800.0; // pixels per second²
 pub const PLAYER_DECELERATION: f32 = 1200.0; // pixels per second²
 pub const JUMP_VELOCITY: f32 = 400.0; // pixels per second
 pub const SPRITE_HEIGHT: f32 = 16.0;
-pub const SPRITE_WIDTH: f32 = 16.0;
 
 // Capsule collider dimensions. A capsule (rounded ends) is used instead of a
 // rectangle so the player slides off platform edges rather than getting

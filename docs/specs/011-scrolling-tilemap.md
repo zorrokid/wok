@@ -209,11 +209,11 @@ Note: `bevy_ecs_tilemap` will be pulled in transitively, so remove direct depend
 
 #### Physics Constants Tuning
 Match the original feel by tuning these values:
-- `Gravity(Vec2::NEG_Y * 980.0)` — Original gravity constant
-- `MOVEMENT_ACCELERATION: f32 = 800.0` — Original player acceleration
-- `JUMP_IMPULSE: f32 = 300.0` — Original jump velocity
-- `MOVEMENT_DAMPING: f32 = 0.9` — Horizontal deceleration (0.9 = 10% slowdown per frame)
-- `PLAYER_MAX_SPEED: f32 = 100.0` — May need velocity clamping in movement system
+- `Gravity(Vec2::NEG_Y * 980.0)` — Global gravity resource
+- `PLAYER_ACCELERATION: f32 = 800.0` — Acceleration toward target speed
+- `PLAYER_DECELERATION: f32 = 1200.0` — Deceleration to zero (faster than accel for snappy stops)
+- `JUMP_VELOCITY: f32 = 400.0` — Jump impulse (tuned up from original 300 to clear highest platform)
+- `PLAYER_MAX_SPEED: f32 = 100.0` — Horizontal speed cap
 
 #### Camera Bounds Formula
 The camera bounds ensure that the viewport edges don't extend beyond the level:
@@ -237,7 +237,7 @@ For now, use hardcoded viewport dimensions (800x600). Future enhancement: query 
 - **Small level**: If `level_width < viewport_width`, set `camera_min_x = camera_max_x = level_center_x` to center the level
 - **Player near edge**: Player can walk to level edges; camera stops but player keeps moving
 - **Lerp at bounds**: Lerp target might be beyond bounds, but clamp ensures camera doesn't exceed limits
-- **Tile alignment**: `TilemapAnchor::BottomLeft` ensures tiles align with collision (spec 010)
+- **Tile alignment**: `TilemapAnchor::Center` centers the map on the world origin; Avian2D colliders are generated at the correct world positions relative to the tile positions
 
 #### Tiled Map Configuration
 - **Orientation**: Orthogonal
@@ -293,7 +293,7 @@ Using Avian2D over Rapier because:
 
 **Risk**: Player may clip through tiles or feel floaty
 **Mitigation**:
-- Use `ShapeCaster` with appropriate max distance (1.0 pixel)
+- Use `ShapeCaster` with appropriate max distance (10.0 pixels works reliably; 1.0 is too small)
 - Tune collider sizes (slightly smaller than sprite to prevent edge catches)
 - Adjust `MovementDampingFactor` if movement feels slippery
 
