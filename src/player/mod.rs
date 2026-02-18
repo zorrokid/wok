@@ -1,4 +1,3 @@
-pub mod coord;
 pub mod movement;
 pub mod spawn;
 

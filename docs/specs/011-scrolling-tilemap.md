@@ -158,29 +158,15 @@ Note: `bevy_ecs_tilemap` will be pulled in transitively, so remove direct depend
 - [ ] Tune physics constants if feel differs from original
 
 #### Phase 6: Remove Custom Collision Code
-- [ ] Remove from `player/movement.rs`:
-  - `FeetTiles` struct
-  - `check_feet_tiles()` function
-  - Custom `is_grounded()` function
-  - `ground_snap_y()` function
-  - All debug `println!` statements
-  - Large TODO comment block (lines 49-81)
-- [ ] Update or remove `level/tile.rs`:
-  - Remove `TileType` enum (no longer needed for collision)
-  - Remove `is_solid_tile()` function
-  - Remove `get_tile_type_at()` function
-  - Remove `world_to_tile_coords()` (unless needed elsewhere)
-  - Keep `TILE_SIZE` constant if still used
-  - Remove `TILEMAP_OFFSET_X/Y` (derive from map transform instead)
-- [ ] Remove `player/coord.rs` if no longer needed:
-  - `PlayerCoord` struct
-  - `Coord` struct
-  - `FOOT_EDGE_INSET`, `GROUND_CHECK_OFFSET` constants
-  - All associated tests
-- [ ] Update `player/mod.rs` exports (remove `PlayerCoord` if deleted)
-- [ ] Remove custom `Velocity` component definition if replaced by `LinearVelocity`
-- [ ] Verify build compiles
-- [ ] Verify tests pass (remove/update tests for deleted code)
+- [x] Remove from `player/movement.rs`: `FeetTiles`, `check_feet_tiles()`, custom `is_grounded()`, `ground_snap_y()`, all debug `println!`, large TODO comment block — done as part of Phase 5 rewrite
+- [x] Stripped `level/tile.rs` to only `TILE_SIZE`, `TILEMAP_OFFSET_X`, `TILEMAP_OFFSET_Y` (hardcoded; see note below)
+- [x] Deleted `player/coord.rs` (`PlayerCoord`, `Coord`, constants, all tests)
+- [x] Removed `pub mod coord` from `player/mod.rs`
+- [x] Removed `Velocity` component (done in Phase 5)
+- [x] Removed `LEVEL_DATA`, `LEVEL_WIDTH_IN_TILES`, `LEVEL_HEIGHT_IN_TILES`, and old `setup_tilemap` from `level/mod.rs`; renamed `setup_tilemap_new` → `setup_tilemap`
+- [x] Build compiles, 11 tests pass
+
+> **Note:** `TILEMAP_OFFSET_X/Y` kept as hardcoded constants (`-160`, `-120`) rather than derived from map transform — spawn.rs uses them for the player's initial position. Update these when the map dimensions change in Phase 7.
 
 #### Phase 7: Expand Level for Scrolling
 - [ ] Edit map in Tiled to expand width to 100+ tiles
@@ -193,40 +179,22 @@ Note: `bevy_ecs_tilemap` will be pulled in transitively, so remove direct depend
 - [ ] Test: Walk from start to end of level
 
 #### Phase 8: Camera Bounds Implementation
-- [ ] Query tilemap dimensions in `camera_follow()`:
-  ```rust
-  fn camera_follow(
-      time: Res<Time>,
-      player_query: Query<&Transform, With<Player>>,
-      mut camera_query: Query<&mut Transform, (With<Camera2d>, Without<Player>)>,
-      tilemap_query: Query<(&Transform, &TilemapSize), With<TileStorage>>,
-  )
-  ```
-- [ ] Calculate level bounds from `TilemapSize` and tilemap `Transform`
-- [ ] Add constants: `VIEWPORT_WIDTH = 800.0`, `VIEWPORT_HEIGHT = 600.0`
-- [ ] Calculate camera min/max X:
-  ```rust
-  let level_width = tilemap_size.x as f32 * TILE_SIZE;
-  let level_left = tilemap_transform.translation.x;
-  let level_right = level_left + level_width;
-  let camera_min_x = level_left + VIEWPORT_WIDTH / 2.0;
-  let camera_max_x = level_right - VIEWPORT_WIDTH / 2.0;
-  ```
-- [ ] Clamp camera X after lerp:
-  ```rust
-  camera_transform.translation.x = camera_transform.translation.x.clamp(camera_min_x, camera_max_x);
-  ```
-- [ ] Handle edge case: level smaller than viewport (center the level)
+- [x] Added `tilemap_query: Query<&TilemapSize, With<TileStorage>>` to `camera_follow()` — bevy_ecs_tiled spawns a child entity per tile layer, each with `TilemapSize` + `TileStorage`; `.iter().next()` picks any layer (they all share the same dimensions)
+- [x] Added `VIEWPORT_WIDTH = 800.0` constant
+- [x] Bounds calculated from `TilemapSize` assuming `TilemapAnchor::Center` (level centered on world origin): `camera_min_x = -half_width + VIEWPORT_WIDTH/2`, `camera_max_x = +half_width - VIEWPORT_WIDTH/2`
+- [x] Camera X clamped after lerp; clamping skipped when level is narrower than viewport (current 20-tile map)
 - [ ] Test: Camera stops at left edge
 - [ ] Test: Camera stops at right edge
 - [ ] Test: Camera follows smoothly in middle
 - [ ] Test: Walk full level from start to end
 
+> **Note:** Camera bounds are implemented but inactive until Phase 7 expands the map beyond 800px (50+ tiles wide). The guard `if camera_max_x > camera_min_x` handles this automatically.
+
 #### Phase 9: Cleanup & Documentation
-- [ ] Remove all debug logging from movement code
-- [ ] Clean up unused imports
-- [ ] Run `cargo test` and fix any remaining test failures
-- [ ] Update `docs/bevy-coordinate-system.md` if coordinate handling changed
+- [x] No debug logging remains (removed in Phase 5 rewrite)
+- [x] No unused imports (verified by compiler)
+- [x] `cargo test` passes — 11 tests, 0 failures
+- [x] `docs/avian2d.md` updated with correct ShapeCaster, capsule collider, and schedule guidance
 - [ ] Final manual testing:
   - [ ] Player spawns correctly
   - [ ] Walking left/right works smoothly
