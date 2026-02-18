@@ -169,13 +169,9 @@ Note: `bevy_ecs_tilemap` will be pulled in transitively, so remove direct depend
 > **Note:** `TILEMAP_OFFSET_X/Y` kept as hardcoded constants (`-160`, `-120`) rather than derived from map transform — spawn.rs uses them for the player's initial position. Update these when the map dimensions change in Phase 7.
 
 #### Phase 7: Expand Level for Scrolling
-- [ ] Edit map in Tiled to expand width to 100+ tiles
-- [ ] Design horizontal level layout:
-  - Starting area (first 20 tiles) with safe platforms
-  - Middle section (tiles 20-80) with varied platform arrangements, gaps
-  - Ending area (tiles 80-100) with challenge or goal marker
-- [ ] Save TMX file
-- [ ] Verify wider map loads correctly
+- [x] Expanded map to 100x30 tiles in Tiled (1600x480px)
+- [x] Updated `level/tile.rs` with `LEVEL_WIDTH_IN_TILES = 100`, `LEVEL_HEIGHT_IN_TILES = 30`; offsets now computed from constants
+- [x] Verified build compiles
 - [ ] Test: Walk from start to end of level
 
 #### Phase 8: Camera Bounds Implementation
