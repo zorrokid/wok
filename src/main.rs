@@ -1,4 +1,5 @@
 mod camera;
+mod collectibles;
 mod keyboard;
 mod level;
 mod player;
@@ -9,6 +10,7 @@ use bevy_ecs_tiled::prelude::*;
 
 use crate::{
     camera::CameraPlugin,
+    collectibles::CollectiblesPlugin,
     keyboard::exit_on_esc,
     level::LevelPlugin,
     player::PlayerPlugin,
@@ -41,7 +43,7 @@ fn main() {
         // Global gravity applied to all Dynamic rigid bodies each physics step.
         // NEG_Y * 980.0 matches the gravity constant used in the old custom system.
         .insert_resource(Gravity(Vec2::NEG_Y * 980.0))
-        .add_plugins((LevelPlugin, PlayerPlugin, CameraPlugin))
+        .add_plugins((LevelPlugin, PlayerPlugin, CameraPlugin, CollectiblesPlugin))
         .add_systems(Update, exit_on_esc)
         .run();
 }
