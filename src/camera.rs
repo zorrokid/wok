@@ -13,6 +13,10 @@ use bevy_ecs_tiled::prelude::{TileStorage, TilemapSize};
 use crate::{level::tile::TILE_SIZE, player::Player, WINDOW_WIDTH};
 
 const CAMERA_LERP_SPEED: f32 = 5.0;
+/// When the camera is further than this from the player, snap immediately
+/// instead of lerping. This prevents the slow scroll across the full map
+/// width that occurs when the player teleports during a map transition.
+const CAMERA_SNAP_THRESHOLD: f32 = 300.0;
 
 pub struct CameraPlugin;
 
@@ -42,12 +46,17 @@ pub fn camera_follow(
         return;
     };
 
-    let lerp_factor = CAMERA_LERP_SPEED * time.delta_secs();
+    let dx = player_transform.translation.x - camera_transform.translation.x;
+    let dy = player_transform.translation.y - camera_transform.translation.y;
 
-    camera_transform.translation.x +=
-        (player_transform.translation.x - camera_transform.translation.x) * lerp_factor;
-    camera_transform.translation.y +=
-        (player_transform.translation.y - camera_transform.translation.y) * lerp_factor;
+    let lerp_factor = if dx.abs() > CAMERA_SNAP_THRESHOLD || dy.abs() > CAMERA_SNAP_THRESHOLD {
+        1.0
+    } else {
+        CAMERA_LERP_SPEED * time.delta_secs()
+    };
+
+    camera_transform.translation.x += dx * lerp_factor;
+    camera_transform.translation.y += dy * lerp_factor;
 
     // Clamp camera so the viewport never shows empty space beyond the map edges.
     // With TilemapAnchor::Center the map is centered on the world origin, so the

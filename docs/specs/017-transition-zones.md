@@ -1,28 +1,28 @@
 # Spec 017 — Transition Zones
 
-## Status: Pending
+## Status: Complete
 
 ## Overview
 
-Replaces the temporary keyboard trigger from spec 016 with physics-based transition zones defined in the Tiled map. Each map has an object layer containing a rectangle whose transition destination is stored as a Tiled Custom Class property. bevy_ecs_tiled automatically deserializes the property into a `LevelTransition` component on the spawned object entity. An observer adds `Sensor` and `Collider` to complete the trigger zone. A `trigger_transition` system detects when the player enters the zone and fires the existing `LevelTransitionEvent`, which `apply_transition` (unchanged from spec 016) handles.
+Replaces the temporary keyboard trigger from spec 016 with physics-based transition zones defined in the Tiled map. Each map has an object layer containing a rectangle whose transition destination is stored as a Tiled Custom Class property. bevy_ecs_tiled automatically deserializes the property into a `LevelTransition` component on the spawned object entity. A global observer adds `Sensor`, `Collider`, and `CollisionEventsEnabled` to complete the trigger zone. A `trigger_transition` system detects when the player enters the zone and sends a `LevelTransitionEvent`, which `apply_transition` (from spec 016) handles.
 
 ## Requirements
 
 1. `LevelTransition { target_map: String, spawn_tile_x: f32, spawn_tile_y: f32 }` is a Bevy component that derives `Reflect` and is registered in the type registry.
 2. Each map has an object layer with at least one rectangle object carrying a `LevelTransition` custom class property.
-3. An observer on `TiledEvent<ObjectCreated>` detects entities that have a `LevelTransition` component (added automatically by bevy_ecs_tiled) and inserts `Sensor` and `Collider::rectangle` to make the zone physically detectable.
-4. A `trigger_transition` system reads Avian2D `CollisionStart` events and sends `LevelTransitionEvent` when the player contacts a `LevelTransition` entity.
+3. A global observer on `TiledEvent<ObjectCreated>` detects entities that have a `LevelTransition` component (added automatically by bevy_ecs_tiled) and inserts `Sensor`, `Collider::rectangle`, and `CollisionEventsEnabled` to make the zone physically detectable.
+4. A `trigger_transition` system reads Avian2D `CollisionStart` messages and sends `LevelTransitionEvent` when the player contacts a `LevelTransition` entity.
 5. The temporary `debug_trigger_transition` system (T / R keys) from spec 016 is removed.
-6. `apply_transition` and the rest of the map switching infrastructure from spec 016 are unchanged.
+6. `apply_transition` and the rest of the map switching infrastructure from spec 016 are unchanged except for `TiledPhysicsSettings` addition (see Implementation Notes).
 
 ## Acceptance Criteria
 
-- [ ] `LevelTransition` component is present on transition zone entities after map load (confirming bevy_ecs_tiled deserialization works).
-- [ ] Transition zone entities have `Sensor` and `Collider` (confirming the observer fires).
-- [ ] Walking into the right-edge zone on map1 transitions to map2 and places the player at the correct position.
-- [ ] Walking into the left-edge zone on map2 transitions back to map1 and places the player at the correct position.
-- [ ] The T and R debug keys no longer trigger transitions.
-- [ ] No panics or errors on repeated back-and-forth transitions.
+- [x] `LevelTransition` component is present on transition zone entities after map load (confirming bevy_ecs_tiled deserialization works).
+- [x] Transition zone entities have `Sensor` and `Collider` (confirming the observer fires).
+- [x] Walking into the right-edge zone on map1 transitions to map2 and places the player at the correct position.
+- [x] Walking into the left-edge zone on map2 transitions back to map1 and places the player at the correct position.
+- [x] The T and R debug keys no longer trigger transitions.
+- [x] No panics or errors on repeated back-and-forth transitions.
 
 ## Implementation Plan
 
@@ -34,100 +34,155 @@ Derives `Reflect` so bevy_ecs_tiled can deserialize it from Tiled class properti
 #[derive(Component, Reflect, Default)]
 #[reflect(Component, Default)]
 pub struct LevelTransition {
-    /// Asset path of the target map, e.g. "map2.tmx".
     pub target_map: String,
-    /// Tile column for the player spawn position in the target map.
     pub spawn_tile_x: f32,
-    /// Tile row for the player spawn position in the target map.
     pub spawn_tile_y: f32,
 }
 ```
 
-`target_map` is `String` (not `&'static str`) because it is deserialized from Tiled at runtime.
+`target_map` is `String` (not `&'static str`) because it is deserialized from Tiled at runtime. `spawn_tile_x/y` use `f32` because bevy_ecs_tiled's property system deserializes Tiled float properties as `f32`.
 
 ### Tiled Setup: Custom Class Property
 
-bevy_ecs_tiled's property system supports **Class** type properties backed by registered Rust types. Plain string/int/float properties are not supported and are silently skipped. The setup:
+bevy_ecs_tiled's property system supports **Class** type properties backed by registered Rust types. The `user_properties` feature **must** be enabled in `Cargo.toml` — without it, the entire deserialization block is compiled out and properties are silently ignored:
 
-1. In the Tiled **Project** settings, define a new Custom Property Type (Class) named exactly: `wok::level::transition::LevelTransition`.
-2. Add three fields to the class:
-   - `target_map` — string
-   - `spawn_tile_x` — float
-   - `spawn_tile_y` — float
-3. In each map's object layer, place a rectangle object and add a property of this class type with the appropriate values.
+```toml
+bevy_ecs_tiled = { version = "0.11.2", features = ["avian", "user_properties"] }
+```
 
-When the map loads, bevy_ecs_tiled matches the class name against the Bevy type registry and inserts the deserialized `LevelTransition` component onto the spawned object entity automatically.
+Custom types are not configurable via the Tiled 1.11 GUI. Instead, add the object XML directly to the `.tmx` file. The property name and `propertytype` attribute must match the **full Rust type path** exactly:
 
-Example object placements:
+```xml
+<objectgroup id="3" name="Entities">
+  <object id="1" x="1520" y="0" width="80" height="480">
+    <properties>
+      <property name="wok::level::transition::LevelTransition"
+                type="class"
+                propertytype="wok::level::transition::LevelTransition">
+        <properties>
+          <property name="target_map" value="map2.tmx"/>
+          <property name="spawn_tile_x" type="float" value="7"/>
+          <property name="spawn_tile_y" type="float" value="4"/>
+        </properties>
+      </property>
+    </properties>
+  </object>
+</objectgroup>
+```
 
-| Map   | Object position       | `target_map`  | `spawn_tile_x` | `spawn_tile_y` |
-|-------|-----------------------|---------------|----------------|----------------|
-| map1  | Right edge of map     | `"map2.tmx"`  | `2.0`          | `4.0`          |
-| map2  | Left edge of map      | `"map1.tmx"`  | `28.0`         | `4.0`          |
+Object placements (both maps are 100×30 tiles, 16px per tile):
 
-> **Type path note**: the name in Tiled must match the full Rust type path exactly. Verify with `println!("{}", std::any::type_name::<LevelTransition>())` if deserialization silently fails.
+| Map   | Object position (Tiled) | `target_map`  | `spawn_tile_x` | `spawn_tile_y` |
+|-------|-------------------------|---------------|----------------|----------------|
+| map1  | x=1520, w=80 (right edge, 5 tiles) | `"map2.tmx"` | `7.0` | `4.0` |
+| map2  | x=0, w=80 (left edge, 5 tiles)     | `"map1.tmx"` | `88.0` | `4.0` |
+
+Spawn positions are placed well inside the destination map (7 tiles from left, 12 tiles from right edge) so the player never spawns inside a transition zone.
+
+### Preventing Automatic Solid Object Colliders
+
+`bevy_ecs_tiled`'s physics backend runs `collider_from_object` in `PreUpdate` via `MessageReader<TiledEvent<ObjectCreated>>`. By default (`TiledFilter::All`), it creates a **solid** `RigidBody::Static` + `Collider` for every object in every object layer — including our transition zones. This would block the player rather than letting them through.
+
+Fix: attach `TiledPhysicsSettings` with `objects_layer_filter: TiledFilter::None` when spawning every `TiledMap` entity. This disables automatic object-layer collider generation while leaving tile-layer collider generation intact:
+
+```rust
+commands.spawn((
+    TiledMap(map_handle),
+    TilemapAnchor::Center,
+    TiledPhysicsSettings::<TiledPhysicsAvianBackend> {
+        objects_layer_filter: TiledFilter::None,
+        ..Default::default()
+    },
+))
+```
+
+This must be applied in both `setup_tilemap` (initial load) and `apply_transition` (subsequent loads).
 
 ### Observer: `setup_transition_colliders`
 
-Fires for every spawned map object. If the entity already has a `LevelTransition` component (inserted by bevy_ecs_tiled), adds the Avian2D components needed to make the zone detectable by the player's collider:
+Registered as a **global observer** via `app.add_observer()`, not per-entity `.observe()`. Global registration means it automatically covers both the initial map load and every subsequent map loaded via `apply_transition`, with no need to re-attach per entity.
+
+When a `TiledEvent<ObjectCreated>` fires:
+- If the entity does not have `LevelTransition`, returns immediately (handles non-transition objects).
+- If it has `LevelTransition`, adds Avian2D sensor components.
+
+**Transform centering**: bevy_ecs_tiled places the entity `Transform` at the **top-left corner** of the Tiled rectangle. Avian2D centers `Collider` on the entity's `Transform`. The fix shifts the Transform to the rectangle's center: `+width/2` in X, `-height/2` in Y (world Y is up, Tiled Y is down).
+
+**`CollisionEventsEnabled` is required**: Avian2D only writes `CollisionStart` messages for a contact pair if at least one entity has `CollisionEventsEnabled`. The player does not have it, so it must be on the zone entity.
 
 ```rust
-fn setup_transition_colliders(
+pub fn setup_transition_colliders(
     ev: On<TiledEvent<ObjectCreated>>,
     mut commands: Commands,
-    query: Query<(&TiledObject, Has<LevelTransition>)>,
+    query: Query<(&TiledObject, Has<LevelTransition>, &Transform)>,
 ) {
     let entity = ev.event().origin;
-    let Ok((obj, has_transition)) = query.get(entity) else { return };
+    let Ok((obj, has_transition, transform)) = query.get(entity) else { return };
     if !has_transition { return; }
 
     let TiledObject::Rectangle { width, height } = obj else { return };
-    // Sensor: player passes through rather than being physically blocked.
-    // Collider dimensions match the rectangle drawn in Tiled.
+    let (width, height) = (*width, *height);
+
+    // Transform is at top-left; Collider is centered — shift to actual center.
+    let center = Transform::from_xyz(
+        transform.translation.x + width / 2.0,
+        transform.translation.y - height / 2.0,
+        transform.translation.z,
+    );
+
     commands.entity(entity).insert((
+        center,
+        RigidBody::Static,
         Sensor,
-        Collider::rectangle(*width, *height),
+        Collider::rectangle(width, height),
+        CollisionEventsEnabled,
     ));
 }
 ```
 
-This observer is attached to every `TiledMap` entity (both initial spawn and post-transition) alongside `on_collider_created`.
-
 ### System: `trigger_transition`
 
-Reads `CollisionStart` events (one-shot per contact begin — fires exactly once when the player enters the zone, unlike the `Collisions` system param which fires every frame):
+Reads `CollisionStart` messages (one-shot per contact begin) each frame. Uses `MessageWriter<LevelTransitionEvent>`, not the legacy `EventWriter`.
+
+A `TransitionCooldown` timer prevents duplicate events. The root cause of duplicates: `Position` writes take effect one physics tick after `apply_transition` runs, so the player may still geometrically overlap a zone on the new map for one frame and fire another `CollisionStart`. The cooldown (0.25s, named `TRANSITION_COOLDOWN_SECS`) masks this overlap.
 
 ```rust
 pub fn trigger_transition(
     mut collision_reader: MessageReader<CollisionStart>,
     player_q: Query<Entity, With<Player>>,
     transition_q: Query<&LevelTransition>,
-    mut writer: EventWriter<LevelTransitionEvent>,
+    mut writer: MessageWriter<LevelTransitionEvent>,
+    mut cooldown: ResMut<TransitionCooldown>,
+    time: Res<Time>,
 ) {
+    cooldown.0.tick(time.delta());
+    if !cooldown.0.is_finished() { return; }
+
     let Ok(player) = player_q.single() else { return };
     for event in collision_reader.read() {
         let other = if event.collider1 == player { event.collider2 }
                     else if event.collider2 == player { event.collider1 }
                     else { continue };
         if let Ok(t) = transition_q.get(other) {
-            writer.write(LevelTransitionEvent {
-                target_map: t.target_map.clone(),
-                spawn_tile_x: t.spawn_tile_x,
-                spawn_tile_y: t.spawn_tile_y,
-            });
+            writer.write(LevelTransitionEvent { ... });
+            cooldown.0.reset();
+            break; // only one transition per frame
         }
     }
 }
 ```
 
+### Camera Snap on Transition
+
+When the player teleports via `apply_transition`, the camera's lerp-based follow produces a slow scroll across the full map width. Fix: in `camera_follow`, use `lerp_factor = 1.0` (instant snap) when the camera is more than `CAMERA_SNAP_THRESHOLD = 300.0` pixels from the player. This threshold is never reached during normal gameplay and only triggers after a teleport.
+
 ### Plugin Registration Changes
 
-In `LevelPlugin::build`, replace `debug_trigger_transition` with `trigger_transition`, register `LevelTransition`, and attach `setup_transition_colliders` to map spawns:
-
 ```rust
-app
-    .register_type::<LevelTransition>()
-    .add_event::<LevelTransitionEvent>()         // already registered in spec 016
+app.register_type::<LevelTransition>()
+    .init_resource::<TransitionCooldown>()
+    .add_message::<LevelTransitionEvent>()
+    .add_observer(setup_transition_colliders)  // global observer
     .add_systems(Startup, (setup_tilemap, spawn_level_bounds))
     .add_systems(Update, (
         trigger_transition,
@@ -135,43 +190,75 @@ app
     ));
 ```
 
-`setup_tilemap` and `apply_transition` are updated to attach `setup_transition_colliders` as a second observer on every `TiledMap` entity spawn.
-
 ### Module Structure Changes
 
 ```
 src/level/
-    transition.rs   Add: LevelTransition, setup_transition_colliders, trigger_transition
+    transition.rs   Add: LevelTransition, TransitionCooldown, setup_transition_colliders,
+                         trigger_transition
                     Remove: debug_trigger_transition
 
+src/camera.rs       Add: CAMERA_SNAP_THRESHOLD, snap logic in camera_follow
+
 assets/
-    map1.tmx        Add object layer with LevelTransition class property rectangle
-    map2.tmx        Add object layer with LevelTransition class property rectangle
+    map1.tmx        Add objectgroup with LevelTransition class property rectangle
+    map2.tmx        Add objectgroup with LevelTransition class property rectangle
+
+Cargo.toml          Add "user_properties" feature to bevy_ecs_tiled
 ```
 
-## Notes
+## Implementation Notes
 
-- **bevy_ecs_tiled deserialization is the risk**: If the type path in Tiled doesn't match the registered Rust type exactly, bevy_ecs_tiled logs an error and skips the property — no crash, but `LevelTransition` won't be present on the entity and the zone will be inert. Check the log for deserialization errors if zones don't work.
-- **`CollisionStart` vs `Collisions`**: `MessageReader<CollisionStart>` fires once per contact begin — correct for a one-shot trigger. The `Collisions` system param (used by the damage system) fires every frame while in contact, which would cause repeated transitions.
-- **Both observers on every map spawn**: `on_collider_created` and `setup_transition_colliders` must both be attached when spawning a `TiledMap` entity — in `setup_tilemap` and in `apply_transition`.
-- **`CollisionEventsEnabled` not needed**: The player's dynamic collider and the transition zone's sensor collider generate `CollisionStart` events without `CollisionEventsEnabled` because the sensor relationship is sufficient for Avian2D to emit the event.
+### bevy_ecs_tiled `user_properties` Feature Is Required
+
+Without `features = ["user_properties"]` in `Cargo.toml`, the entire property deserialization block inside bevy_ecs_tiled is compiled out (`#[cfg(feature = "user_properties")]`). Properties are silently ignored — no error, no log, no crash — and `LevelTransition` will never be present on object entities. Always enable this feature when using Custom Class properties.
+
+### `collider_from_object` Creates Solid Colliders for All Object-Layer Objects
+
+The `TiledPhysicsPlugin` registers `collider_from_object` in `PreUpdate` which by default creates a solid `RigidBody::Static` + `Collider` for every object in every object layer. Adding `TiledPhysicsSettings { objects_layer_filter: TiledFilter::None }` to the `TiledMap` entity at spawn time is the correct way to opt out. This must be done on every `TiledMap` spawn (both initial and post-transition).
+
+### Global Observer Required for Multi-Spawn Coverage
+
+Per-entity `.observe(setup_transition_colliders)` on the `TiledMap` entity does **not** receive `TiledEvent<ObjectCreated>` triggers for child object entities — the observer must be on the object entity itself, not its map ancestor. `app.add_observer()` (global observer) fires for every trigger in the app regardless of which entity it targets, solving this cleanly.
+
+### `CollisionEventsEnabled` Is Required on Sensor Zone Entities
+
+Avian2D only writes `CollisionStart` messages when at least one entity in the pair has `CollisionEventsEnabled`. The sensor flag alone is not sufficient. The player entity does not have `CollisionEventsEnabled`, so the transition zone entity must have it.
+
+### `Position` Not `Transform` for Player Repositioning
+
+Avian2D owns the `Transform` of dynamic rigid bodies and overwrites it from `Position` each physics tick. Writing `Transform` directly in `apply_transition` would be overwritten by physics within one frame. Always write `Position` (Avian's component) to reposition physics-driven entities.
+
+### Spawn Positions Must Clear All Transition Zones
+
+If a player spawns inside a destination zone, `CollisionStart` fires immediately on the next physics frame and a second transition triggers. Place spawn positions far enough from zone edges that the player cannot reach the zone within `TRANSITION_COOLDOWN_SECS` seconds of the initial transition.
+
+### bevy_ecs_tiled Transform Is at Top-Left, Avian Collider Is Centered
+
+When bevy_ecs_tiled spawns a rectangle object entity, it places the `Transform` at the **top-left corner** of the Tiled rectangle. Avian2D's `Collider::rectangle(w, h)` is centered on the entity's `Transform`. To align the collider with the drawn rectangle, shift the Transform by `+width/2` in X and `-height/2` in Y (world Y is up, Tiled Y is down).
+
+### Coordinate Formula Assumes Uniform Map Size
+
+The player spawn formula (`TILEMAP_OFFSET_X + tile_x * TILE_SIZE + TILE_SIZE/2`) relies on compile-time constants derived from `LEVEL_WIDTH_IN_TILES` and `LEVEL_HEIGHT_IN_TILES`. This is correct only while all maps share those dimensions. If maps ever differ in size, these offsets must become per-map metadata carried in `LevelTransitionEvent`.
 
 ## Task Checklist
 
-- [ ] Add `LevelTransition` component (with `Reflect` derives) to `src/level/transition.rs`
-- [ ] Register `LevelTransition` in `LevelPlugin` with `app.register_type::<LevelTransition>()`
-- [ ] Define `LevelTransition` Custom Property Type in Tiled project settings
-- [ ] Add object layer with `LevelTransition` class property rectangle to `assets/map1.tmx`
-- [ ] Add object layer with `LevelTransition` class property rectangle to `assets/map2.tmx`
-- [ ] Add `setup_transition_colliders` observer to `src/level/transition.rs`
-- [ ] Attach `setup_transition_colliders` to `TiledMap` spawn in `setup_tilemap` and `apply_transition`
-- [ ] Add `trigger_transition` system to `src/level/transition.rs`
-- [ ] Replace `debug_trigger_transition` with `trigger_transition` in `LevelPlugin`
-- [ ] Verify `LevelTransition` is present on zone entities after map load
-- [ ] Verify zone entities have `Sensor` and `Collider`
-- [ ] Verify walking into each zone triggers the correct transition
-- [ ] Verify T and R keys no longer trigger transitions
-- [ ] Mark spec complete after user verification
+- [x] Add `LevelTransition` component (with `Reflect` derives) to `src/level/transition.rs`
+- [x] Register `LevelTransition` in `LevelPlugin` with `app.register_type::<LevelTransition>()`
+- [x] Enable `user_properties` feature in `Cargo.toml` for bevy_ecs_tiled property deserialization
+- [x] Add object layer with `LevelTransition` class property rectangle to `assets/map1.tmx`
+- [x] Add object layer with `LevelTransition` class property rectangle to `assets/map2.tmx`
+- [x] Add `setup_transition_colliders` global observer to `src/level/transition.rs`
+- [x] Register `setup_transition_colliders` with `app.add_observer` in `LevelPlugin`
+- [x] Add `TiledPhysicsSettings { objects_layer_filter: TiledFilter::None }` to all `TiledMap` spawns
+- [x] Add `trigger_transition` system with `TransitionCooldown` to `src/level/transition.rs`
+- [x] Replace `debug_trigger_transition` with `trigger_transition` in `LevelPlugin`
+- [x] Add camera snap logic (`CAMERA_SNAP_THRESHOLD`) to `src/camera.rs`
+- [x] Verify `LevelTransition` is present on zone entities after map load
+- [x] Verify zone entities have `Sensor` and `Collider`
+- [x] Verify walking into each zone triggers the correct transition
+- [x] Verify T and R keys no longer trigger transitions
+- [x] Verify back-and-forth transitions work without loops or camera scrolling
 
 ## Related Specs
 
@@ -180,7 +267,9 @@ assets/
 
 ## Related Files
 
-- `src/level/transition.rs` — add `LevelTransition`, `setup_transition_colliders`, `trigger_transition`; remove `debug_trigger_transition`
-- `src/level/mod.rs` — register `LevelTransition` type; attach `setup_transition_colliders` observer; swap system registration
-- `assets/map1.tmx` — add object layer with transition zone
-- `assets/map2.tmx` — add object layer with transition zone
+- `src/level/transition.rs` — `LevelTransition`, `TransitionCooldown`, `setup_transition_colliders`, `trigger_transition`
+- `src/level/mod.rs` — plugin registration, `TiledPhysicsSettings` on map spawns
+- `src/camera.rs` — camera snap on teleport
+- `assets/map1.tmx` — object layer with transition zone
+- `assets/map2.tmx` — object layer with transition zone
+- `Cargo.toml` — `user_properties` feature for bevy_ecs_tiled

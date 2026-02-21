@@ -10,30 +10,31 @@ use bevy::{
     transform::components::Transform,
 };
 use bevy_ecs_tiled::prelude::{
-    ColliderCreated, TiledEvent, TiledMap, TiledMapAsset, TilemapAnchor,
+    ColliderCreated, TiledEvent, TiledFilter, TiledMap, TiledMapAsset, TilemapAnchor,
+    TiledPhysicsAvianBackend, TiledPhysicsSettings,
 };
 
 use crate::level::tile::{LEVEL_HEIGHT_IN_TILES, LEVEL_WIDTH_IN_TILES, TILE_SIZE, TILEMAP_OFFSET_X};
 use crate::level::transition::{
-    CurrentMap, LevelTransitionEvent, apply_transition, debug_trigger_transition,
+    CurrentMap, LevelTransition, LevelTransitionEvent, TransitionCooldown,
+    apply_transition, setup_transition_colliders, trigger_transition,
 };
+
 
 pub struct LevelPlugin;
 
 impl Plugin for LevelPlugin {
     fn build(&self, app: &mut App) {
-        // LevelTransitionEvent uses Bevy 0.18's Message system (add_message) rather
-        // than the older add_event API. Messages are pull-based: writers queue them
-        // and readers consume them in a scheduled system.
-        app.add_message::<LevelTransitionEvent>()
+        app.register_type::<LevelTransition>()
+            .init_resource::<TransitionCooldown>()
+            .add_message::<LevelTransitionEvent>()
+            .add_observer(setup_transition_colliders)
             .add_systems(Startup, (setup_tilemap, spawn_level_bounds))
             .add_systems(
                 Update,
                 (
-                    debug_trigger_transition,
-                    // apply_transition must run after debug_trigger_transition so it
-                    // sees any message written this frame before the reader advances.
-                    apply_transition.after(debug_trigger_transition),
+                    trigger_transition,
+                    apply_transition.after(trigger_transition),
                 ),
             );
     }
@@ -71,17 +72,22 @@ pub fn on_collider_created(ev: On<TiledEvent<ColliderCreated>>, mut commands: Co
 }
 
 pub fn setup_tilemap(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // TiledMap triggers bevy_ecs_tiled to parse the .tmx file and spawn child
-    // entities for each layer and tile. TilemapAnchor::Center positions the
-    // tilemap so that its center aligns with the world origin (0, 0).
     let map_handle: Handle<TiledMapAsset> = asset_server.load("map1.tmx");
     let entity = commands
-        .spawn((TiledMap(map_handle), TilemapAnchor::Center))
+        .spawn((
+            TiledMap(map_handle),
+            TilemapAnchor::Center,
+            // Disable automatic object-layer collider creation. Without this,
+            // collider_from_object creates a solid collider for every object
+            // (including transition zones), blocking the player. We create
+            // transition zone colliders manually in setup_transition_colliders.
+            TiledPhysicsSettings::<TiledPhysicsAvianBackend> {
+                objects_layer_filter: TiledFilter::None,
+                ..Default::default()
+            },
+        ))
         .observe(on_collider_created)
         .id();
 
-    // CurrentMap is used by apply_transition to despawn the old map hierarchy
-    // when switching levels. It must be inserted after spawn so the entity ID
-    // is known.
     commands.insert_resource(CurrentMap(entity));
 }

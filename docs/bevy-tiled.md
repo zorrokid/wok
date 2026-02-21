@@ -120,6 +120,12 @@ app.add_plugins(TiledPlugin::default());
 app.add_plugins(TiledPhysicsPlugin::<TiledPhysicsAvianBackend>::default());
 ```
 
+**`user_properties` feature required for Tiled class properties:** If you use Custom Class properties to attach Rust components via bevy_ecs_tiled, you must enable the `user_properties` feature in `Cargo.toml`. Without it, the entire deserialization block is compiled out — properties are **silently ignored** with no error or warning:
+
+```toml
+bevy_ecs_tiled = { version = "0.11.2", features = ["avian", "user_properties"] }
+```
+
 ### Loading a Map
 
 Spawn an entity with the `TiledMap` component holding an asset handle. The plugin detects it and spawns the full map hierarchy as child entities:
@@ -137,12 +143,12 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 ### Lifecycle Events
 
-The plugin emits events as it processes the map. Each event is sent both as a **message** (readable globally by any system) and as an **entity observer trigger** (fires only on a specific entity). Use whichever fits the architecture:
+The plugin emits events as it processes the map. Each event is sent both as a **message** (readable globally by any system) and as an **entity observer trigger**. Use whichever fits the architecture:
 
 ```rust
-// MessageReader — global, readable in any system, any plugin
-// Use when multiple independent systems need to react (e.g. each plugin
-// sets up its own entity type without coupling through LevelPlugin).
+// MessageReader — global, readable in any system, any plugin.
+// Correct for ColliderCreated, LayerCreated — events that each system
+// needs to react to independently.
 fn on_object_spawned(mut reader: MessageReader<TiledEvent<ObjectCreated>>) {
     for ev in reader.read() {
         let entity = ev.origin;
@@ -150,17 +156,21 @@ fn on_object_spawned(mut reader: MessageReader<TiledEvent<ObjectCreated>>) {
     }
 }
 
-// Entity observer — immediate, attached to a specific TiledMap entity
-// Use when the reaction is tightly coupled to that map (e.g. marking
-// tile colliders as RigidBody::Static).
-commands
-    .spawn((TiledMap(handle), TilemapAnchor::Center))
-    .observe(|ev: On<TiledEvent<ColliderCreated>>, mut commands: Commands| {
-        commands.entity(ev.event().origin).insert(RigidBody::Static);
-    });
+// Global app observer (app.add_observer) — fires for every trigger in the app.
+// Use this for ObjectCreated when you need to react to child object entities:
+// per-entity .observe() on a TiledMap entity does NOT receive triggers
+// for its child object entities — the trigger must be global.
+app.add_observer(setup_zones);
+
+fn setup_zones(ev: On<TiledEvent<ObjectCreated>>, mut commands: Commands, ...) {
+    let entity = ev.event().origin;
+    // entity is the object child, not the TiledMap entity
+}
 ```
 
 **Do not use `EventReader`** — these are bevy_ecs_tiled messages, not standard Bevy events. `MessageReader` is the correct type.
+
+**Per-entity `.observe()` on `TiledMap` does not receive `ObjectCreated` for child objects.** When you call `.observe(my_fn)` on a `TiledMap` entity, the observer only fires for triggers sent directly to that entity — not for triggers sent to its children. `ObjectCreated` is triggered on the object entity itself (a child), so only a global observer (`app.add_observer`) will see it.
 
 Available events: `MapCreated`, `LayerCreated`, `TilemapCreated`, `TileCreated`, `ObjectCreated`, `ColliderCreated`.
 
@@ -168,17 +178,31 @@ Available events: `MapCreated`, `LayerCreated`, `TilemapCreated`, `TileCreated`,
 
 When `TiledPhysicsPlugin` is added with the Avian backend, solid tiles automatically receive `RigidBody::Static` and `Collider` components — no manual collider placement needed.
 
-Control which layers generate colliders via `TiledPhysicsSettings`:
+**`collider_from_object` creates solid colliders for ALL object-layer objects by default.** The physics backend runs two systems in `PreUpdate`: `collider_from_tiles_layer` (for tile layers) and `collider_from_object` (for object layers). Both use `TiledFilter::All` by default, which matches everything. This means every rectangle object in every object layer gets a solid `RigidBody::Static` + `Collider` — including objects you intend as sensor zones or spawn markers. If you have object-layer objects that should **not** be solid physics bodies, disable object collider generation:
 
 ```rust
 commands.spawn((
     TiledMap(asset_server.load("map.tmx")),
     TilemapAnchor::Center,
     TiledPhysicsSettings::<TiledPhysicsAvianBackend> {
-        tiles_layer_filter: TiledFilter::include_layer("Ground"),
-        ..default()
+        // Disable automatic solid colliders for object-layer objects.
+        // Create colliders manually in an observer for objects that need them.
+        objects_layer_filter: TiledFilter::None,
+        ..Default::default()
     },
 ));
+```
+
+This setting must be added **at spawn time**. If you omit it, `initialize_settings_for_maps` inserts the default (all-matching) settings in `PreUpdate` before `collider_from_object` reads the events.
+
+Control which layers generate tile colliders via `tiles_layer_filter`:
+
+```rust
+TiledPhysicsSettings::<TiledPhysicsAvianBackend> {
+    tiles_layer_filter: TiledFilter::Names(vec!["Ground".into()]),
+    objects_layer_filter: TiledFilter::None,
+    ..Default::default()
+}
 ```
 
 The `TiledPhysicsAvianBackend` collider shape options:
@@ -205,7 +229,22 @@ Object layers in Tiled spawn as ECS entities. Each spawned object entity has:
   `width` and `height` are in pixels, matching the rectangle drawn in the Tiled editor.
 
 - **`TiledName`** — a `String` wrapper holding the object's name from Tiled.
-- **`Transform`** — world position computed from the object's position in the map.
+- **`Transform`** — world position of the object's **top-left corner** (not center). This matches Tiled's coordinate convention (origin at top-left of each object). Avian2D's `Collider::rectangle(w, h)` is centered on the entity's `Transform`, so if you add a collider using the object's dimensions, you must offset the Transform by `+width/2` in X and `-height/2` in Y to center the collider on the drawn rectangle:
+
+```rust
+// bevy_ecs_tiled places Transform at the top-left of the Tiled rectangle.
+// Avian2D centers Collider on Transform.
+// Shift Transform to the rectangle center before inserting the collider.
+let center = Transform::from_xyz(
+    transform.translation.x + width / 2.0,
+    transform.translation.y - height / 2.0,  // Y negated: world Y is up, Tiled Y is down
+    transform.translation.z,
+);
+commands.entity(entity).insert((
+    center,
+    Collider::rectangle(width, height),
+));
+```
 
 React to spawned objects via `MessageReader<TiledEvent<ObjectCreated>>`:
 
@@ -271,7 +310,26 @@ app.register_type::<MyMarker>();
    ```
    The Tiled class would have fields `speed` (float) and `count` (int).
 
+   > **Tiled 1.11 note:** The Custom Types UI may not be accessible in all Tiled 1.11 builds. If the menu is unavailable, edit the `.tmx` file directly (see TMX format below).
+
 3. **In the Tiled map**, select an object and add a property of the class type. bevy_ecs_tiled reads this on load and inserts the deserialized component onto the spawned entity — no observer or extra code needed for the component itself.
+
+   If adding properties via Tiled's GUI is not possible, add the XML directly to the `.tmx` file. The `propertytype` attribute must match the full Rust type path exactly:
+
+   ```xml
+   <object id="1" x="100" y="0" width="80" height="480">
+     <properties>
+       <property name="mycrate::mymodule::SpawnConfig"
+                 type="class"
+                 propertytype="mycrate::mymodule::SpawnConfig">
+         <properties>
+           <property name="speed" type="float" value="5.0"/>
+           <property name="count" type="int" value="3"/>
+         </properties>
+       </property>
+     </properties>
+   </object>
+   ```
 
 #### Type Path Requirement
 
@@ -301,9 +359,11 @@ TiledMap entity
 To despawn a map and all its tiles, objects, and colliders:
 
 ```rust
-commands.entity(map_entity).despawn_related::<Children>();
+commands.entity(map_entity).despawn_children();
 commands.entity(map_entity).despawn();
 ```
+
+`despawn_children()` despawns all child entities recursively. The separate `despawn()` call then removes the map entity itself. Both calls are deferred (applied at the next command flush), so there is one frame where both the old and new map coexist if you spawn the replacement map in the same system.
 
 This is the correct pattern for level transitions. Gameplay entities (enemies, collectibles) that are spawned as object children are cleaned up automatically.
 
