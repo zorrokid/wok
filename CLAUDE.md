@@ -10,10 +10,13 @@ WoK is a Metroidvania-style 2D platformer built with **Bevy 0.18** (ECS game eng
 
 ```bash
 cargo run          # Run the game (dev build)
-cargo build        # Compile only (dev build)
+cargo check        # Verify compilation without producing a binary (preferred)
+cargo build        # Compile only (dev build) — heavier than cargo check
 cargo test         # Run all tests
 cargo test <name>  # Run a specific test by name
 ```
+
+**Prefer `cargo check` over `cargo build`** when only verifying that code compiles — it skips code generation and is significantly lighter on CPU and RAM. Only use `cargo build` when a runnable binary is actually needed.
 
 **Never use `cargo build --release`** during development — it's extremely slow. **Avoid `cargo clean`** unless absolutely necessary; Bevy's initial build takes 2–3 minutes but incremental builds are fast.
 

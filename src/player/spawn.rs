@@ -2,6 +2,7 @@ use avian2d::prelude::*;
 use bevy::{
     asset::AssetServer,
     ecs::{
+        entity::Entity,
         query::With,
         system::{Commands, Query, Res},
     },
@@ -11,8 +12,8 @@ use bevy::{
 };
 
 use crate::player::{
-    COLLIDER_HALF_LENGTH, COLLIDER_RADIUS, KILL_ZONE_Y, PLAYER_SPAWN_X, PLAYER_SPAWN_Y,
-    Player, SHAPE_CASTER_RADIUS,
+    Health, NeedsRespawn, COLLIDER_HALF_LENGTH, COLLIDER_RADIUS, KILL_ZONE_Y, PLAYER_MAX_HP,
+    PLAYER_SPAWN_X, PLAYER_SPAWN_Y, Player, SHAPE_CASTER_RADIUS,
 };
 
 pub fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -20,6 +21,7 @@ pub fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     commands.spawn((
         Player,
+        Health::full(PLAYER_MAX_HP),
         RigidBody::Dynamic,
         // Capsule collider: rounded ends prevent snagging on tile corners when
         // walking off platform edges. Total height = 2*half_length + 2*radius = 14px.
@@ -44,18 +46,20 @@ pub fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
     ));
 }
 
-/// Teleports the player back to spawn if they fall below the level floor.
+/// Marks the player for respawn if they fall below the kill zone threshold.
 ///
-/// The threshold is 64px below `TILEMAP_OFFSET_Y` so minor physics clipping
-/// doesn't trigger it. Uses `Position` (not `Transform`) because Avian2D owns
-/// the transform for dynamic bodies.
-pub fn kill_zone(mut query: Query<(&mut Position, &mut LinearVelocity), With<Player>>) {
-    let Ok((mut position, mut velocity)) = query.single_mut() else {
+/// Inserts `NeedsRespawn` rather than resetting position directly so that
+/// `respawn_player` (the single respawn authority) handles both fall deaths
+/// and HP-zero deaths through the same code path.
+pub fn kill_zone(
+    mut commands: Commands,
+    query: Query<(Entity, &Position), With<Player>>,
+) {
+    let Ok((entity, position)) = query.single() else {
         return;
     };
 
     if position.y < KILL_ZONE_Y {
-        *position = Position::from_xy(PLAYER_SPAWN_X, PLAYER_SPAWN_Y);
-        *velocity = LinearVelocity::ZERO;
+        commands.entity(entity).insert(NeedsRespawn);
     }
 }
