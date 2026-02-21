@@ -3,10 +3,11 @@ pub mod collection;
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
-use crate::level::tile::{TILE_SIZE, TILEMAP_OFFSET_X, TILEMAP_OFFSET_Y};
-
 use crate::collectibles::collection::collect_items;
+use crate::level::tile::MapDimensions;
 
+// Tile-grid (column, row) positions for collectible placement.
+// Temporary: spec 018 will replace these with Tiled object-layer entities.
 const COLLECTIBLE_POSITIONS: &[(f32, f32)] = &[
     (5.0, 4.0),
     (10.0, 4.0),
@@ -22,15 +23,18 @@ pub struct CollectiblesPlugin;
 
 impl Plugin for CollectiblesPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_collectibles)
-            .add_systems(Update, collect_items);
+        app.add_systems(Update, collect_items);
     }
 }
 
-fn spawn_collectibles(mut commands: Commands) {
+/// Spawns collectible items at tile-grid positions computed from `dims`.
+///
+/// Called from `on_map_created` on first map load only (guarded by a
+/// `Query<(), With<Collectible>>` check). Temporary until spec 018 replaces
+/// placement with Tiled object-layer entities.
+pub fn spawn_collectibles_at(dims: &MapDimensions, commands: &mut Commands) {
     for &(col, row) in COLLECTIBLE_POSITIONS {
-        let x = TILEMAP_OFFSET_X + col * TILE_SIZE + TILE_SIZE / 2.0;
-        let y = TILEMAP_OFFSET_Y + row * TILE_SIZE + TILE_SIZE / 2.0;
+        let pos = dims.tile_to_world(col, row);
 
         commands.spawn((
             Collectible,
@@ -39,7 +43,7 @@ fn spawn_collectibles(mut commands: Commands) {
                 custom_size: Some(Vec2::splat(16.0)),
                 ..default()
             },
-            Transform::from_xyz(x, y, 0.0),
+            Transform::from_xyz(pos.x, pos.y, 0.0),
             Collider::rectangle(16.0, 16.0),
             Sensor,
             // Required by Avian2D to emit CollisionStart/CollisionEnd messages for this entity.
