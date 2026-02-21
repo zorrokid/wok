@@ -1,6 +1,6 @@
 # Spec 016 — Map Switching
 
-## Status: Pending
+## Status: Complete
 
 ## Overview
 
@@ -18,13 +18,13 @@ Establishes the core map switching infrastructure: a second map file, a `Current
 
 ## Acceptance Criteria
 
-- [ ] `map1.tmx` loads on startup as before; the game is otherwise unchanged.
-- [ ] `map2.tmx` loads correctly when triggered (tiles render, physics colliders present).
-- [ ] Pressing T switches from map1 to map2 and places the player at the correct position.
-- [ ] Pressing R switches from map2 to map1 and places the player at the correct position.
-- [ ] The previous map's tiles and colliders are fully removed after each switch.
-- [ ] Player health and physics state are preserved; only position and velocity are overwritten.
-- [ ] No panics or errors on repeated back-and-forth switches.
+- [x] `map1.tmx` loads on startup as before; the game is otherwise unchanged.
+- [x] `map2.tmx` loads correctly when triggered (tiles render, physics colliders present).
+- [x] Pressing T switches from map1 to map2 and places the player at the correct position.
+- [x] Pressing R switches from map2 to map1 and places the player at the correct position.
+- [x] The previous map's tiles and colliders are fully removed after each switch.
+- [x] Player health and physics state are preserved; only position and velocity are overwritten.
+- [x] No panics or errors on repeated back-and-forth switches.
 
 ## Implementation Plan
 
@@ -171,19 +171,20 @@ assets/
 - **Level bounds persist**: `spawn_level_bounds` runs only at `Startup` and spawns wall colliders as independent entities (not children of the map). They remain valid across transitions as long as both maps share the same dimensions.
 - **Enemies and collectibles are independent entities**: They are not children of `TiledMap` and will persist after a transition. For now, keep enemies and collectibles only in map1. Scoping gameplay entities to the active map is deferred to a future spec.
 - **T and R keys are temporary**: `debug_trigger_transition` exists only to test the plumbing. It is removed in spec 017 when physics-based transition zones take over.
+- **Message not Event**: Bevy 0.18 replaced the old `Event`/`EventWriter`/`EventReader`/`add_event` API with `Message`/`MessageWriter`/`MessageReader`/`add_message`. The spec's code samples used the old names; the implementation uses the correct Bevy 0.18 API. The derive macro is `#[derive(Message)]` and registration is `app.add_message::<T>()`.
 
 ## Task Checklist
 
-- [ ] Rename `assets/map.tmx` to `assets/map1.tmx`
-- [ ] Create `assets/map2.tmx` with same tileset and dimensions
-- [ ] Create `src/level/transition.rs` with `CurrentMap`, `LevelTransitionEvent`, `apply_transition`, `debug_trigger_transition`
-- [ ] Update `src/level/mod.rs`: extract `on_collider_created`, update `setup_tilemap` to use `map1.tmx` and insert `CurrentMap`, register event and systems in `LevelPlugin`
-- [ ] Verify map1 loads on startup as before
-- [ ] Verify T key switches to map2 with correct player position
-- [ ] Verify R key switches back to map1 with correct player position
-- [ ] Verify old map is fully removed after each switch
-- [ ] Verify no panics on repeated switching
-- [ ] Mark spec complete after user verification
+- [x] Rename `assets/map.tmx` to `assets/map1.tmx`
+- [x] Create `assets/map2.tmx` with same tileset and dimensions
+- [x] Create `src/level/transition.rs` with `CurrentMap`, `LevelTransitionEvent`, `apply_transition`, `debug_trigger_transition`
+- [x] Update `src/level/mod.rs`: extract `on_collider_created`, update `setup_tilemap` to use `map1.tmx` and insert `CurrentMap`, register event and systems in `LevelPlugin`
+- [x] Verify map1 loads on startup as before
+- [x] Verify T key switches to map2 with correct player position
+- [x] Verify R key switches back to map1 with correct player position
+- [x] Verify old map is fully removed after each switch
+- [x] Verify no panics on repeated switching
+- [x] Mark spec complete after user verification
 
 ## Related Specs
 

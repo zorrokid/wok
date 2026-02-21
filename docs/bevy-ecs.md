@@ -99,7 +99,7 @@ Plugins are the unit of modularity. A plugin groups related systems, resources, 
 │               - Query (component access)                │
 │               - Res / ResMut (resource access)          │
 │               - Commands (deferred entity mutations)    │
-│               - EventReader / EventWriter               │
+│               - MessageReader / MessageWriter            │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -273,24 +273,51 @@ fn write(mut score: ResMut<Score>) { score.0 += 100; }
 
 ---
 
-## Events
+## Events and Messages
+
+Bevy 0.18 has **two** pub-sub mechanisms. Use the right one:
+
+### Messages (`Message` / `MessageWriter` / `MessageReader`)
+
+The **primary** API for game events — used for gameplay communication between systems (level transitions, damage, collectible pickup, etc.).
 
 ```rust
-#[derive(Event)]
-pub struct Landed;
+#[derive(Message)]
+pub struct LevelTransitionEvent {
+    pub target_map: String,
+}
 
-app.add_event::<Landed>();
+app.add_message::<LevelTransitionEvent>();
 
 // Send
-fn check_landing(mut writer: EventWriter<Landed>) {
-    writer.send(Landed);
+fn trigger_transition(mut writer: MessageWriter<LevelTransitionEvent>) {
+    writer.write(LevelTransitionEvent { target_map: "map2.tmx".into() });
 }
 
-// Receive — events persist for 2 frames then are cleared
-fn on_landed(mut reader: EventReader<Landed>) {
-    for _event in reader.read() { }
+// Receive — pull-based, consumed by the reader system
+fn apply_transition(mut reader: MessageReader<LevelTransitionEvent>) {
+    for ev in reader.read() { }
 }
 ```
+
+Messages are pull-based: writers enqueue them, readers consume them in a scheduled system. A message persists until a reader consumes it.
+
+### Legacy Events (`Event` / `EventWriter` / `EventReader`)
+
+The older API — still present in Bevy 0.18 but superseded by `Message` for new code. Events auto-clear after 2 frames regardless of whether they were read.
+
+```rust
+// Old pattern — avoid for new code
+#[derive(Event)]
+pub struct Landed;
+app.add_event::<Landed>();
+fn send(mut writer: EventWriter<Landed>) { writer.send(Landed); }
+fn recv(mut reader: EventReader<Landed>) { for _ in reader.read() { } }
+```
+
+**Use `Message` for all new game events in this project.**
+
+### Observers (immediate, entity-targeted)
 
 For immediate, targeted reactions, Bevy 0.18 supports **observers**:
 
