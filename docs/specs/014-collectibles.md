@@ -1,6 +1,6 @@
 # Spec 014 — Collectibles
 
-## Status: Pending
+## Status: Complete
 
 ## Overview
 
@@ -17,11 +17,11 @@ Introduces collectible items to the game world. When the player touches a collec
 
 ## Acceptance Criteria
 
-- [ ] Yellow squares appear at the defined positions when the game starts.
-- [ ] Walking or jumping into a yellow square causes it to disappear instantly.
-- [ ] The player's movement and physics are not affected by touching a collectible (sensor, not solid).
-- [ ] Collecting all items leaves the level empty of collectibles with no errors or panics.
-- [ ] The collectibles module compiles cleanly and is wired into `main.rs`.
+- [x] Yellow squares appear at the defined positions when the game starts.
+- [x] Walking or jumping into a yellow square causes it to disappear instantly.
+- [x] The player's movement and physics are not affected by touching a collectible (sensor, not solid).
+- [x] Collecting all items leaves the level empty of collectibles with no errors or panics.
+- [x] The collectibles module compiles cleanly and is wired into `main.rs`.
 
 ## Implementation Plan
 
@@ -85,13 +85,13 @@ Convert to world coordinates in `spawn_collectibles` using the same `TILEMAP_OFF
 
 ## Task Checklist
 
-- [ ] Create `src/collectibles/mod.rs` with `Collectible` component, `CollectiblesPlugin`, spawn positions, and `spawn_collectibles` system
-- [ ] Create `src/collectibles/collection.rs` with `collect_items` system
-- [ ] Wire `CollectiblesPlugin` into `main.rs`
-- [ ] Declare `mod collectibles` in `main.rs`
-- [ ] Verify yellow squares appear at the correct positions in-game
-- [ ] Verify collecting items removes them without affecting player physics
-- [ ] Mark spec complete after user verification
+- [x] Create `src/collectibles/mod.rs` with `Collectible` component, `CollectiblesPlugin`, spawn positions, and `spawn_collectibles` system
+- [x] Create `src/collectibles/collection.rs` with `collect_items` system
+- [x] Wire `CollectiblesPlugin` into `main.rs`
+- [x] Declare `mod collectibles` in `main.rs`
+- [x] Verify yellow squares appear at the correct positions in-game
+- [x] Verify collecting items removes them without affecting player physics
+- [x] Mark spec complete after user verification
 
 ## Related Specs
 
