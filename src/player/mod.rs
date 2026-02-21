@@ -1,3 +1,4 @@
+pub mod health;
 pub mod movement;
 pub mod spawn;
 
@@ -5,9 +6,12 @@ use bevy::{app::{App, Plugin, Startup, Update}, ecs::component::Component, prelu
 
 use crate::level::tile::{TILE_SIZE, TILEMAP_OFFSET_X, TILEMAP_OFFSET_Y};
 use crate::player::{
+    health::{tick_invincibility, respawn_player},
     movement::{player_movement, update_grounded},
     spawn::{kill_zone, spawn_player},
 };
+
+pub use health::{Health, InvincibilityTimer, NeedsRespawn};
 
 // Movement constants
 pub const PLAYER_MAX_SPEED: f32 = 100.0; // pixels per second
@@ -31,6 +35,8 @@ pub const PLAYER_SPAWN_Y: f32 = TILEMAP_OFFSET_Y + 3.0 * TILE_SIZE + SPRITE_HEIG
 
 // Kill zone: 64px below the map floor so minor physics clipping doesn't trigger a respawn.
 pub const KILL_ZONE_Y: f32 = TILEMAP_OFFSET_Y - 64.0;
+
+pub const PLAYER_MAX_HP: i32 = 3;
 
 // Player marker component
 #[derive(Component)]
@@ -57,6 +63,10 @@ impl Plugin for PlayerPlugin {
             // in FixedUpdate can cause one extra or missed velocity write per physics tick
             // under frame-rate variance. If this becomes noticeable, the fix is to buffer
             // jump intent into a JumpQueued component in Update and consume it in FixedUpdate.
-            .add_systems(Update, (update_grounded, player_movement, kill_zone).chain());
+            .add_systems(
+                Update,
+                (tick_invincibility, update_grounded, player_movement, kill_zone, respawn_player)
+                    .chain(),
+            );
     }
 }
