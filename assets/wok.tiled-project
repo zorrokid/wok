@@ -10,5 +10,32 @@
     "properties": [
     ],
     "propertyTypes": [
+        {
+            "color": "#000000",
+            "drawFill": true,
+            "id": 1,
+            "members": [
+                {
+                    "name": "target_map",
+                    "type": "string",
+                    "value": ""
+                },
+                {
+                    "name": "spawn_tile_x",
+                    "type": "float",
+                    "value": 0.0
+                },
+                {
+                    "name": "spawn_tile_y",
+                    "type": "float",
+                    "value": 0.0
+                }
+            ],
+            "name": "wok::level::transition::LevelTransition",
+            "type": "class",
+            "useAs": [
+                "property"
+            ]
+        }
     ]
 }

@@ -2,7 +2,7 @@ use bevy::{
     app::{App, Plugin, Startup, Update},
     ecs::{
         query::{With, Without},
-        system::{Commands, Query, Res},
+        system::{Query, Res},
     },
     prelude::Camera2d,
     time::Time,
@@ -10,7 +10,7 @@ use bevy::{
 };
 use bevy_ecs_tiled::prelude::{TileStorage, TilemapSize};
 
-use crate::{level::tile::TILE_SIZE, player::Player, WINDOW_WIDTH};
+use crate::{level::tile::MapDimensions, player::Player, WINDOW_WIDTH};
 
 const CAMERA_LERP_SPEED: f32 = 5.0;
 /// When the camera is further than this from the player, snap immediately
@@ -27,7 +27,7 @@ impl Plugin for CameraPlugin {
     }
 }
 
-fn setup_camera(mut commands: Commands) {
+fn setup_camera(mut commands: bevy::ecs::system::Commands) {
     commands.spawn(Camera2d);
 }
 
@@ -38,6 +38,7 @@ pub fn camera_follow(
     // bevy_ecs_tiled spawns a child entity per tile layer; each has TilemapSize + TileStorage.
     // All layers share the same tile dimensions, so any one of them gives the level width.
     tilemap_query: Query<&TilemapSize, With<TileStorage>>,
+    map_dims: Res<MapDimensions>,
 ) {
     let Ok(player_transform) = player_query.single() else {
         return;
@@ -62,7 +63,7 @@ pub fn camera_follow(
     // With TilemapAnchor::Center the map is centered on the world origin, so the
     // left edge is at -half_width and the right edge at +half_width.
     if let Some(tilemap_size) = tilemap_query.iter().next() {
-        let half_width = tilemap_size.x as f32 * TILE_SIZE / 2.0;
+        let half_width = tilemap_size.x as f32 * map_dims.tile_size / 2.0;
         let camera_min_x = -half_width + WINDOW_WIDTH / 2.0;
         let camera_max_x = half_width - WINDOW_WIDTH / 2.0;
 

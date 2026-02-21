@@ -11,12 +11,26 @@ use bevy::{
     transform::components::Transform,
 };
 
+use crate::level::tile::MapDimensions;
 use crate::player::{
-    Health, NeedsRespawn, COLLIDER_HALF_LENGTH, COLLIDER_RADIUS, KILL_ZONE_Y, PLAYER_MAX_HP,
-    PLAYER_SPAWN_X, PLAYER_SPAWN_Y, Player, SHAPE_CASTER_RADIUS,
+    Health, NeedsRespawn, COLLIDER_HALF_LENGTH, COLLIDER_RADIUS, PLAYER_MAX_HP,
+    SPRITE_HEIGHT, Player, SHAPE_CASTER_RADIUS,
 };
 
-pub fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
+/// Returns the initial world-space spawn position for the player.
+///
+/// Placed 3 tiles from the bottom-left corner of the map, centred on the
+/// sprite height. Called from both `spawn_player_at` and `respawn_player`.
+pub fn initial_spawn_pos(dims: &MapDimensions) -> Vec2 {
+    dims.tile_to_world(3.0, 3.0) + Vec2::new(0.0, SPRITE_HEIGHT / 2.0)
+}
+
+/// Spawns the player entity at the initial map spawn position.
+///
+/// Called from `level::on_map_created` on first map load only (guarded by a
+/// `Query<(), With<Player>>` check in the observer).
+pub fn spawn_player_at(dims: &MapDimensions, commands: &mut Commands, asset_server: &AssetServer) {
+    let spawn_pos = initial_spawn_pos(dims);
     let player_texture = asset_server.load("player.png");
 
     commands.spawn((
@@ -42,24 +56,28 @@ pub fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
         .with_max_distance(10.0),
         ShapeHits::default(),
         Sprite::from_image(player_texture),
-        Transform::from_xyz(PLAYER_SPAWN_X, PLAYER_SPAWN_Y, 10.0),
+        Transform::from_xyz(spawn_pos.x, spawn_pos.y, 10.0),
     ));
 }
 
 /// Marks the player for respawn if they fall below the kill zone threshold.
 ///
-/// Inserts `NeedsRespawn` rather than resetting position directly so that
-/// `respawn_player` (the single respawn authority) handles both fall deaths
-/// and HP-zero deaths through the same code path.
+/// The kill zone is 64 px below the map floor so minor physics clipping
+/// doesn't trigger a spurious respawn. Inserts `NeedsRespawn` rather than
+/// resetting position directly so that `respawn_player` (the single respawn
+/// authority) handles both fall deaths and HP-zero deaths through the same
+/// code path.
 pub fn kill_zone(
     mut commands: Commands,
+    map_dims: Res<MapDimensions>,
     query: Query<(Entity, &Position), With<Player>>,
 ) {
     let Ok((entity, position)) = query.single() else {
         return;
     };
 
-    if position.y < KILL_ZONE_Y {
+    let kill_zone_y = map_dims.offset_y - 64.0;
+    if position.y < kill_zone_y {
         commands.entity(entity).insert(NeedsRespawn);
     }
 }

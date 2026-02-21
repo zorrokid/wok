@@ -1,7 +1,9 @@
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
-use crate::player::{PLAYER_MAX_HP, PLAYER_SPAWN_X, PLAYER_SPAWN_Y};
+use crate::level::tile::MapDimensions;
+use crate::player::PLAYER_MAX_HP;
+use crate::player::spawn::initial_spawn_pos;
 
 /// Current and maximum hit points for the player.
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
@@ -54,10 +56,12 @@ pub fn tick_invincibility(
 /// rigid bodies. Writing to `Transform` directly would be overwritten by the physics step.
 pub fn respawn_player(
     mut commands: Commands,
+    map_dims: Res<MapDimensions>,
     mut query: Query<(Entity, &mut Position, &mut LinearVelocity, &mut Health), With<NeedsRespawn>>,
 ) {
     for (entity, mut position, mut velocity, mut health) in &mut query {
-        *position = Position::from_xy(PLAYER_SPAWN_X, PLAYER_SPAWN_Y);
+        let spawn_pos = initial_spawn_pos(&map_dims);
+        *position = Position::from_xy(spawn_pos.x, spawn_pos.y);
         *velocity = LinearVelocity::ZERO;
         *health = Health::full(PLAYER_MAX_HP);
         commands

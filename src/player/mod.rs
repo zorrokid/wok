@@ -2,13 +2,12 @@ pub mod health;
 pub mod movement;
 pub mod spawn;
 
-use bevy::{app::{App, Plugin, Startup, Update}, ecs::component::Component, prelude::IntoScheduleConfigs};
+use bevy::{app::{App, Plugin, Update}, ecs::component::Component, prelude::IntoScheduleConfigs};
 
-use crate::level::tile::{TILE_SIZE, TILEMAP_OFFSET_X, TILEMAP_OFFSET_Y};
 use crate::player::{
     health::{tick_invincibility, respawn_player},
     movement::{player_movement, update_grounded},
-    spawn::{kill_zone, spawn_player},
+    spawn::kill_zone,
 };
 
 pub use health::{Health, InvincibilityTimer, NeedsRespawn};
@@ -29,13 +28,6 @@ pub const COLLIDER_RADIUS: f32 = 5.0;
 // detection at tile edges when the player is flush against a wall.
 pub const SHAPE_CASTER_RADIUS: f32 = COLLIDER_RADIUS - 1.0;
 
-// Spawn position: 3 tiles from the bottom-left corner of the map, centred on the sprite.
-pub const PLAYER_SPAWN_X: f32 = TILEMAP_OFFSET_X + 3.0 * TILE_SIZE;
-pub const PLAYER_SPAWN_Y: f32 = TILEMAP_OFFSET_Y + 3.0 * TILE_SIZE + SPRITE_HEIGHT / 2.0;
-
-// Kill zone: 64px below the map floor so minor physics clipping doesn't trigger a respawn.
-pub const KILL_ZONE_Y: f32 = TILEMAP_OFFSET_Y - 64.0;
-
 pub const PLAYER_MAX_HP: i32 = 3;
 
 // Player marker component
@@ -53,20 +45,12 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_player)
-            // update_grounded reads ShapeHits from the last physics step and inserts/removes
-            // the Grounded marker. It must run before player_movement so the jump check sees
-            // the current grounded state. Both run in Update (not FixedUpdate) so that
-            // keyboard.just_pressed() reliably fires exactly once per player input.
-            //
-            // Known trade-off: writing LinearVelocity in Update while Avian2D integrates it
-            // in FixedUpdate can cause one extra or missed velocity write per physics tick
-            // under frame-rate variance. If this becomes noticeable, the fix is to buffer
-            // jump intent into a JumpQueued component in Update and consume it in FixedUpdate.
-            .add_systems(
-                Update,
-                (tick_invincibility, update_grounded, player_movement, kill_zone, respawn_player)
-                    .chain(),
-            );
+        // spawn_player is called from level::on_map_created on first map load,
+        // so there is no Startup registration here.
+        app.add_systems(
+            Update,
+            (tick_invincibility, update_grounded, player_movement, kill_zone, respawn_player)
+                .chain(),
+        );
     }
 }

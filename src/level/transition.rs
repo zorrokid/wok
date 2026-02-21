@@ -20,7 +20,7 @@ use bevy_ecs_tiled::prelude::{
 
 use crate::level::{
     on_collider_created,
-    tile::{TILE_SIZE, TILEMAP_OFFSET_X, TILEMAP_OFFSET_Y},
+    tile::MapDimensions,
 };
 use crate::player::Player;
 
@@ -76,17 +76,17 @@ impl Default for TransitionCooldown {
 
 /// Carries destination data for a map transition.
 ///
-/// `spawn_tile_x` and `spawn_tile_y` are in tile coordinates measured from
-/// the bottom-left of the map. `apply_transition` converts them to world
-/// space before writing the player's `Position`.
+/// `spawn_pos` is the world-space position where the player should appear in
+/// the target map. It is computed in `trigger_transition` from the source
+/// map's `MapDimensions` so that `apply_transition` can apply it directly
+/// without needing to know the source map's tile layout.
 ///
 /// Uses `Message` (not the legacy `Event`) so it can be queued via
 /// `MessageWriter` and consumed in a scheduled system via `MessageReader`.
 #[derive(Message)]
 pub struct LevelTransitionEvent {
     pub target_map: String,
-    pub spawn_tile_x: f32,
-    pub spawn_tile_y: f32,
+    pub spawn_pos: Vec2,
 }
 
 /// Global observer: fires for every `TiledEvent<ObjectCreated>` in the app.
@@ -140,6 +140,10 @@ pub fn setup_transition_colliders(
 /// `LevelTransition` entity, sends a `LevelTransitionEvent` for
 /// `apply_transition` to handle.
 ///
+/// `trigger_transition` converts the tile-grid spawn coordinates stored on the
+/// `LevelTransition` component into world space using the current map's
+/// `MapDimensions`, so `apply_transition` receives a ready-to-use `Vec2`.
+///
 /// Uses `CollisionStart` (not the `Collisions` system param) because a
 /// one-shot trigger per contact begin is correct here — re-firing every
 /// frame while inside the zone would cause rapid repeated transitions.
@@ -150,6 +154,7 @@ pub fn trigger_transition(
     mut writer: MessageWriter<LevelTransitionEvent>,
     mut cooldown: ResMut<TransitionCooldown>,
     time: Res<Time>,
+    map_dims: Res<MapDimensions>,
 ) {
     cooldown.0.tick(time.delta());
     if !cooldown.0.is_finished() {
@@ -169,10 +174,10 @@ pub fn trigger_transition(
 
         if let Ok(t) = transition_q.get(other) {
             info!("Player touched transition zone → {}", t.target_map);
+            let spawn_pos = map_dims.tile_to_world(t.spawn_tile_x, t.spawn_tile_y);
             writer.write(LevelTransitionEvent {
                 target_map: t.target_map.clone(),
-                spawn_tile_x: t.spawn_tile_x,
-                spawn_tile_y: t.spawn_tile_y,
+                spawn_pos,
             });
             cooldown.0.reset();
             break;
@@ -219,13 +224,7 @@ pub fn apply_transition(
     commands.insert_resource(CurrentMap(new_entity));
 
     if let Ok((mut pos, mut vel)) = player_q.single_mut() {
-        // TILEMAP_OFFSET_X/Y are compile-time constants derived from
-        // LEVEL_WIDTH_IN_TILES / LEVEL_HEIGHT_IN_TILES. This formula is correct
-        // only while all maps share those dimensions. If maps ever differ in size,
-        // spawn offsets must become per-map metadata stored in LevelTransitionEvent.
-        let world_x = TILEMAP_OFFSET_X + ev.spawn_tile_x * TILE_SIZE + TILE_SIZE / 2.0;
-        let world_y = TILEMAP_OFFSET_Y + ev.spawn_tile_y * TILE_SIZE + TILE_SIZE / 2.0;
-        pos.0 = Vec2::new(world_x, world_y);
+        pos.0 = ev.spawn_pos;
         // Clear momentum so the player does not arrive at speed.
         vel.0 = Vec2::ZERO;
     }
