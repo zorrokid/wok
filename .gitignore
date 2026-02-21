@@ -1,3 +1,5 @@
 /target
 /vendor
 .cargo
+*.tiled-session
+tiled_types_export.json
